@@ -1,24 +1,77 @@
-import logo from './logo.svg';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { LanguageProvider } from './contexts/LanguageContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './components/Login';
+import MainPage from './components/MainPage';
+import DocumentProcess from './components/DocumentProcess';
+import DocumentTask from './components/DocumentTask';
+import KnowledgeBase from './components/KnowledgeBase';
+import KnowledgeBaseDetail from './components/KnowledgeBaseDetail';
+import Agents from './components/Agents';
 import './App.css';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <LanguageProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/main"
+              element={
+                <ProtectedRoute>
+                  <MainPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/document/:id/process"
+              element={
+                <ProtectedRoute>
+                  <DocumentProcess />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/document/:documentId/task/:taskId"
+              element={
+                <ProtectedRoute>
+                  <DocumentTask />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/knowledge-base"
+              element={
+                <ProtectedRoute>
+                  <KnowledgeBase />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/knowledge-base/:id"
+              element={
+                <ProtectedRoute>
+                  <KnowledgeBaseDetail />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/agents"
+              element={
+                <ProtectedRoute>
+                  <Agents />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="/" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 

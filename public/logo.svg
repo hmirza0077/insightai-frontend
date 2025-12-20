@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-labelledby="title4 desc4">
+  <title id="title4">Insight Eye</title>
+  <desc id="desc4">Eye with a small page icon as the pupil</desc>
+  <g fill="none" stroke="#0B6EF6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- eye -->
+    <path d="M12 60 C32 20, 88 20, 108 60 C88 100, 32 100, 12 60 Z"/>
+    <!-- pupil page -->
+    <rect x="48" y="46" width="24" height="28" rx="2" fill="#0B6EF6"/>
+    <line x1="54" y1="56" x2="66" y2="56" stroke="#fff" stroke-width="2"/>
+    <line x1="54" y1="64" x2="66" y2="64" stroke="#fff" stroke-width="2"/>
+  </g>
+</svg>
+
+
+
+
