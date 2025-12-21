@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import { documentsAPI } from '../api';
 import { useNavigate, Link } from 'react-router-dom';
 import Logo from './Logo';
@@ -9,6 +10,7 @@ import './MainPage.css';
 const MainPage = () => {
   const { user, logout, refreshUser } = useAuth();
   const { t, toggleLanguage, language } = useLanguage();
+  const toast = useToast();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -37,7 +39,7 @@ const MainPage = () => {
 
   const handleUpload = async () => {
     if (!selectedFile) {
-      alert(t.main.selectFileFirst);
+      toast.warning(t.main.selectFileFirst);
       return;
     }
 
@@ -47,9 +49,9 @@ const MainPage = () => {
       await loadDocuments();
       setSelectedFile(null);
       document.getElementById('file-input').value = '';
-      alert(t.main.uploadSuccess);
+      toast.success(t.main.uploadSuccess);
     } catch (error) {
-      alert(t.main.uploadError + ' ' + (error.response?.data?.error || 'Unknown error'));
+      toast.error(t.main.uploadError + ' ' + (error.response?.data?.error || 'Unknown error'));
     } finally {
       setUploading(false);
     }

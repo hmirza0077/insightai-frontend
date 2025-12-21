@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { knowledgeBaseAPI } from '../api';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import Logo from './Logo';
 import './KnowledgeBase.css';
 
@@ -14,6 +15,7 @@ const KnowledgeBase = () => {
   const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
   const { t, toggleLanguage, language } = useLanguage();
+  const toast = useToast();
 
   useEffect(() => {
     loadKnowledgeBases();
@@ -56,7 +58,7 @@ const KnowledgeBase = () => {
       // Navigate to the new KB
       navigate(`/knowledge-base/${response.data.id}`);
     } catch (error) {
-      alert(error.response?.data?.error || 'Error creating knowledge base');
+      toast.error(error.response?.data?.error || 'Error creating knowledge base');
     } finally {
       setCreating(false);
     }

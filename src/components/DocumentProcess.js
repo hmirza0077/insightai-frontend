@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import { documentsAPI } from '../api';
 import './DocumentProcess.css';
 
@@ -8,6 +9,7 @@ const DocumentProcess = () => {
   const { id: documentId } = useParams();
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const toast = useToast();
   const [document, setDocument] = useState(null);
   const [docInfo, setDocInfo] = useState(null);
   const [existingTasks, setExistingTasks] = useState([]);
@@ -42,6 +44,12 @@ const DocumentProcess = () => {
       setDocument(docResponse.data);
       setDocInfo(infoResponse.data);
       setExistingTasks(tasksResponse.data || []);
+      
+      // Debug logging
+      console.log('[DocumentProcess] Info response:', infoResponse.data);
+      console.log('[DocumentProcess] Available tools:', infoResponse.data.available_tools);
+      console.log('[DocumentProcess] Recommended tool:', infoResponse.data.recommended_tool);
+      
       setAvailableTools(infoResponse.data.available_tools || []);
       setRecommendedTool(infoResponse.data.recommended_tool || 'auto');
       setSelectedTool(infoResponse.data.recommended_tool || 'auto');
@@ -57,7 +65,7 @@ const DocumentProcess = () => {
       }
     } catch (error) {
       console.error('Error loading document:', error);
-      alert(t.docProcess.loadError + ': ' + (error.response?.data?.error || 'Unknown error'));
+      toast.error(t.docProcess.loadError + ': ' + (error.response?.data?.error || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -65,7 +73,7 @@ const DocumentProcess = () => {
 
   const handleCreateTask = async () => {
     if (!taskType) {
-      alert(t.docProcess.whatToDo);
+      toast.warning(t.docProcess.whatToDo);
       return;
     }
 
@@ -88,10 +96,10 @@ const DocumentProcess = () => {
       }
 
       const response = await documentsAPI.createTask(documentId, taskData);
-      alert(t.docProcess.taskCreated);
+      toast.success(t.docProcess.taskCreated);
       navigate(`/document/${documentId}/task/${response.data.id}`);
     } catch (error) {
-      alert(t.docProcess.taskError + ' ' + (error.response?.data?.error || 'Unknown error'));
+      toast.error(t.docProcess.taskError + ' ' + (error.response?.data?.error || 'Unknown error'));
     } finally {
       setProcessing(false);
     }
@@ -271,14 +279,29 @@ const DocumentProcess = () => {
                     onChange={(e) => setSelectedTool(e.target.value)}
                     className="form-select"
                   >
-                    <option value="auto">Auto-select (Recommended)</option>
+                    <option value="auto">
+                      {t.docProcess.autoSelect || 'Auto-select'} 
+                      {recommendedTool && recommendedTool !== 'auto' ? ` → ${availableTools.find(t => t.id === recommendedTool)?.name || recommendedTool}` : ''} 
+                      ({t.docProcess.recommended || 'Recommended'})
+                    </option>
                     {availableTools.map((tool) => (
                       <option key={tool.id} value={tool.id}>
-                        {tool.name} {tool.id === recommendedTool ? '(Recommended)' : ''}
-                        {!tool.is_available ? ' (Not Available)' : ''}
+                        {tool.name}
+                        {tool.ocr ? ' 🔍' : ''}
+                        {tool.id === recommendedTool ? ` (${t.docProcess.recommended || 'Recommended'})` : ''}
                       </option>
                     ))}
                   </select>
+                  {availableTools.length === 0 && (
+                    <p className="info-text warning">
+                      {t.docProcess.noToolsAvailable || 'No extraction tools available for this file type'}
+                    </p>
+                  )}
+                  {availableTools.length === 1 && (
+                    <p className="info-text">
+                      {t.docProcess.onlyToolAvailable || 'Only'} <strong>{availableTools[0].name}</strong> {t.docProcess.supportsThisFormat || 'supports this file format'}
+                    </p>
+                  )}
                 </div>
                 
                 {selectedTool && availableTools.find(t => t.id === selectedTool) && (

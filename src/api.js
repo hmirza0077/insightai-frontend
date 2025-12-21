@@ -14,9 +14,24 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken');
+    console.log('[API] Request to:', config.url, 'Method:', config.method);
+    console.log('[API] Token present:', !!token);
+    console.log('[API] Token value (first 30 chars):', token ? token.substring(0, 30) + '...' : 'null');
+    
     if (token) {
+      // Always set Authorization header
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('[API] Authorization header set:', config.headers.Authorization.substring(0, 40) + '...');
     }
+    
+    // For FormData, let browser set Content-Type with boundary
+    if (config.data instanceof FormData) {
+      console.log('[API] FormData detected, removing Content-Type header');
+      delete config.headers['Content-Type'];
+    }
+    
+    console.log('[API] Final headers:', JSON.stringify(config.headers));
     return config;
   },
   (error) => {
@@ -63,60 +78,92 @@ api.interceptors.response.use(
   }
 );
 
-// Auth API
+// Auth API - New Flow
 export const authAPI = {
-  // OTP Flow
-  requestOTP: async (identifier) => {
-    const response = await api.post('/users/auth/request-otp/', { identifier });
+  /**
+   * Step 1: Start login - Returns temp_code, has_password, is_registered
+   * If has_password is true, redirect to password login
+   * If has_password is false, need to request OTP
+   */
+  startLogin: async (username) => {
+    const response = await api.post('/user/auth/start-login/', { username });
     return response.data;
   },
   
-  verifyOTP: async (identifier, code) => {
-    const response = await api.post('/users/auth/verify-otp/', { identifier, code });
-    if (response.data.tokens) {
-      localStorage.setItem('accessToken', response.data.tokens.access);
-      localStorage.setItem('refreshToken', response.data.tokens.refresh);
+  /**
+   * Step 2a: Request OTP code (if user chose OTP or doesn't have password)
+   * Uses temp_code from startLogin response
+   */
+  requestOTP: async (tempCode) => {
+    const response = await api.post(`/user/auth/${tempCode}/request-code/`);
+    return response.data;
+  },
+  
+  /**
+   * Step 2b: Verify OTP code
+   * Uses temp_code from startLogin response
+   */
+  verifyOTP: async (tempCode, code) => {
+    const response = await api.post(`/user/auth/${tempCode}/verify/`, { code });
+    if (response.data.token) {
+      localStorage.setItem('accessToken', response.data.token);
     }
-    return response.data;
+    return { 
+      success: true, 
+      token: response.data.token,
+      is_b2b: response.data.is_b2b
+    };
   },
   
-  resendOTP: (identifier) => api.post('/users/auth/resend-otp/', { identifier }),
-  
-  // Password Flow
-  passwordLogin: async (identifier, password) => {
-    const response = await api.post('/users/auth/password-login/', { identifier, password });
-    if (response.data.tokens) {
-      localStorage.setItem('accessToken', response.data.tokens.access);
-      localStorage.setItem('refreshToken', response.data.tokens.refresh);
+  /**
+   * Step 2c: Login with password (if user has password)
+   * Uses temp_code from startLogin response
+   */
+  passwordLogin: async (tempCode, password) => {
+    const response = await api.post(`/user/auth/${tempCode}/login-with-password/`, { password });
+    console.log('[API] Password login response:', response.data);
+    if (response.data.token) {
+      localStorage.setItem('accessToken', response.data.token);
+      console.log('[API] Token stored in localStorage');
+    } else {
+      console.error('[API] No token in response!');
     }
-    return response.data;
+    return { 
+      success: true, 
+      token: response.data.token,
+      is_b2b: response.data.is_b2b
+    };
   },
   
-  setupPassword: async (password, passwordConfirm) => {
-    const response = await api.post('/users/auth/setup-password/', {
-      password,
-      password_confirm: passwordConfirm
-    });
-    if (response.data.tokens) {
-      localStorage.setItem('accessToken', response.data.tokens.access);
-      localStorage.setItem('refreshToken', response.data.tokens.refresh);
+  /**
+   * Google Sign In
+   */
+  googleLogin: async (accessToken) => {
+    const response = await api.post('/user/auth/google/', { access_token: accessToken });
+    if (response.data.token) {
+      localStorage.setItem('accessToken', response.data.token);
     }
-    return response.data;
+    return {
+      success: true,
+      token: response.data.token,
+      new_user: response.data.new_user,
+      is_b2b: response.data.is_b2b
+    };
   },
   
-  checkPasswordSetup: () => api.get('/users/auth/check-password/'),
+  /**
+   * Set/Change password (requires authentication)
+   */
+  setPassword: async (password) => {
+    const response = await api.patch('/user/profile/change-password/', { password });
+    return { success: true };
+  },
   
-  // User
-  getCurrentUser: () => api.get('/users/me/'),
-  updateProfile: (data) => api.patch('/users/me/update/', data),
+  // User Profile
+  getCurrentUser: () => api.get('/user/profile/'),
+  updateProfile: (data) => api.patch('/user/profile/', data),
   
   logout: async () => {
-    const refreshToken = localStorage.getItem('refreshToken');
-    try {
-      await api.post('/users/auth/logout/', { refresh: refreshToken });
-    } catch (e) {
-      // Ignore errors on logout
-    }
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
   },
@@ -136,9 +183,9 @@ export const documentsAPI = {
   upload: (file) => {
     const formData = new FormData();
     formData.append('file', file);
-    return api.post('/documents/', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    console.log('[UPLOAD] Uploading file:', file.name);
+    // Let the interceptor handle Authorization header
+    return api.post('/documents/', formData);
   },
   
   get: (id) => api.get(`/documents/${id}/`),

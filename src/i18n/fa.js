@@ -28,6 +28,8 @@ const fa = {
     sendingOtp: 'در حال ارسال...',
     otpSent: 'کد تایید ارسال شد',
     otpSentTo: 'کد تایید به آدرس زیر ارسال شد:',
+    otpSentToEmail: 'کد تایید به ایمیل شما ارسال شد',
+    otpSentToPhone: 'کد تایید به شماره موبایل شما ارسال شد',
     enterOtp: 'کد تایید',
     otpPlaceholder: 'کد ۶ رقمی را وارد کنید',
     verifyOtp: 'تایید و ورود',
@@ -62,6 +64,12 @@ const fa = {
     yourEmail: 'ایمیل شما',
     yourPhone: 'شماره موبایل شما',
     sent: 'ارسال شد',
+    // New flow messages
+    hasPasswordMessage: 'لطفاً رمز عبور خود را برای ورود وارد کنید',
+    useOtpInstead: 'استفاده از کد تایید',
+    invalidPassword: 'رمز عبور نامعتبر است. لطفاً دوباره تلاش کنید.',
+    passwordOptional: 'تنظیم رمز عبور اختیاری است. می‌توانید رد شوید و بعداً تنظیم کنید.',
+    skipForNow: 'فعلاً رد شوید',
   },
   
   // Main Page
@@ -174,6 +182,12 @@ const fa = {
     existingTasks: 'وظایف موجود',
     hideCreateForm: 'مخفی کردن فرم ایجاد',
     createNewTask: '+ ایجاد وظیفه جدید',
+    // Tool selection
+    autoSelect: 'انتخاب خودکار',
+    recommended: 'پیشنهادی',
+    noToolsAvailable: 'ابزار استخراج برای این نوع فایل در دسترس نیست',
+    onlyToolAvailable: 'فقط',
+    supportsThisFormat: 'از این فرمت فایل پشتیبانی می‌کند',
   },
   
   // Knowledge Base

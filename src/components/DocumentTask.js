@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { documentsAPI } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import Logo from './Logo';
 import './DocumentTask.css';
 
@@ -9,6 +10,7 @@ const DocumentTask = () => {
   const { documentId, taskId } = useParams();
   const navigate = useNavigate();
   const { t, toggleLanguage, language } = useLanguage();
+  const toast = useToast();
   const pollInterval = useRef(null);
   
   // State
@@ -147,7 +149,7 @@ const DocumentTask = () => {
         }
       } catch (error) {
         console.error('Error loading data:', error);
-        alert(t.docTask.loadError);
+        toast.error(t.docTask.loadError);
       } finally {
         setLoading(false);
       }
@@ -212,7 +214,7 @@ const DocumentTask = () => {
         startPolling();
       }
     } catch (error) {
-      alert(error.response?.data?.error || t.docTask.processError);
+      toast.error(error.response?.data?.error || t.docTask.processError);
     } finally {
       setProcessing(false);
     }
@@ -260,9 +262,9 @@ const DocumentTask = () => {
       
       setIsEditing(false);
       setEditContent('');
-      alert(t.docTask.pageSaved || 'Page saved successfully!');
+      toast.success(t.docTask.pageSaved || 'Page saved successfully!');
     } catch (error) {
-      alert(error.response?.data?.error || t.docTask.saveError || 'Failed to save');
+      toast.error(error.response?.data?.error || t.docTask.saveError || 'Failed to save');
     } finally {
       setSavingPage(false);
     }
@@ -305,9 +307,9 @@ const DocumentTask = () => {
       }
       
       setIsEditing(false);
-      alert(t.docTask.pageDeleted || 'Page deleted successfully!');
+      toast.success(t.docTask.pageDeleted || 'Page deleted successfully!');
     } catch (error) {
-      alert(error.response?.data?.error || t.docTask.saveError || 'Failed to delete');
+      toast.error(error.response?.data?.error || t.docTask.saveError || 'Failed to delete');
     } finally {
       setSavingPage(false);
     }
@@ -327,7 +329,7 @@ const DocumentTask = () => {
         setExpandedAnswers(prev => ({ ...prev, [response.data.conversation.id]: true }));
       }
     } catch (error) {
-      alert(error.response?.data?.error || t.docTask.askError);
+      toast.error(error.response?.data?.error || t.docTask.askError);
     } finally {
       setAsking(false);
     }

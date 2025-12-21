@@ -603,3 +603,79 @@ html[dir="ltr"] .login-input {
   color: var(--gray-800);
 }
 
+/* Step Info - shows current identifier */
+.step-info {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.identifier-display {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: var(--primary-50);
+  color: var(--primary-700);
+  border-radius: var(--radius-full);
+  font-size: 0.95rem;
+  font-weight: 600;
+  direction: ltr;
+}
+
+/* Alternative login section */
+.alternative-login {
+  margin-top: 1rem;
+  text-align: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--gray-200);
+}
+
+.switch-method-btn {
+  background: transparent;
+  color: var(--primary-600);
+  border: 1px solid var(--primary-200);
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition-normal);
+  border-radius: var(--radius-full);
+}
+
+.switch-method-btn:hover:not(:disabled) {
+  background: var(--primary-50);
+  border-color: var(--primary-400);
+}
+
+.switch-method-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Optional note */
+.optional-note {
+  color: var(--gray-500);
+  font-size: 0.85rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Skip button */
+.skip-button {
+  width: 100%;
+  padding: 0.75rem;
+  background: transparent;
+  color: var(--gray-600);
+  border: 1px dashed var(--gray-300);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: var(--transition-normal);
+  border-radius: var(--radius-md);
+}
+
+.skip-button:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-400);
+  color: var(--gray-700);
+}
+

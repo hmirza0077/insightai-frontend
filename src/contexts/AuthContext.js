@@ -27,7 +27,8 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const response = await authAPI.getCurrentUser();
-      setUser(response.data.user);
+      // Profile endpoint returns user data directly
+      setUser(response.data);
     } catch (error) {
       // Token might be expired, try to refresh is handled by interceptor
       // If still fails, clear user
@@ -39,22 +40,39 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (authResult) => {
     try {
-      // authResult should contain user, tokens, wallet
-      if (authResult.tokens) {
+      // Handle different auth result formats
+      // New format: { success: true, token: '...' }
+      // Old format: { tokens: { access: '...', refresh: '...' }, user: {...} }
+      
+      if (authResult.token) {
+        // New single token format (already stored in api.js)
+        // Token is already set by the API function
+      } else if (authResult.tokens) {
+        // Old format with separate access/refresh tokens
         localStorage.setItem('accessToken', authResult.tokens.access);
-        localStorage.setItem('refreshToken', authResult.tokens.refresh);
+        if (authResult.tokens.refresh) {
+          localStorage.setItem('refreshToken', authResult.tokens.refresh);
+        }
       }
       
+      // Set user if provided, otherwise fetch from API
       if (authResult.user) {
         setUser(authResult.user);
       } else {
-        // Fetch user if not in result
-        const response = await authAPI.getCurrentUser();
-        setUser(response.data.user);
+        // Fetch user profile - don't fail the whole login if this fails
+        try {
+          const response = await authAPI.getCurrentUser();
+          setUser(response.data);
+        } catch (profileError) {
+          console.error('Failed to fetch user profile:', profileError);
+          // Set a minimal user object so the app can continue
+          setUser({ id: 'unknown', email: '', username: '' });
+        }
       }
       
       return authResult;
     } catch (error) {
+      console.error('Login error:', error);
       throw error;
     }
   };
@@ -71,7 +89,7 @@ export const AuthProvider = ({ children }) => {
   const refreshUser = async () => {
     try {
       const response = await authAPI.getCurrentUser();
-      setUser(response.data.user);
+      setUser(response.data);
     } catch (error) {
       console.error('Failed to refresh user:', error);
     }

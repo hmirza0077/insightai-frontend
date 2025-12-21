@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { agentsAPI, knowledgeBaseAPI } from '../api';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import Logo from './Logo';
 import './Agents.css';
 
@@ -18,6 +19,7 @@ const Agents = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t, toggleLanguage, language } = useLanguage();
+  const toast = useToast();
 
   useEffect(() => {
     loadAgents();
@@ -56,9 +58,9 @@ const Agents = () => {
       setShowCreateForm(false);
       setNewAgent({ name: '', description: '', knowledge_base: '' });
       loadAgents();
-      alert(t.agents.createSuccess);
+      toast.success(t.agents.createSuccess);
     } catch (error) {
-      alert(t.agents.createError + ' ' + (error.response?.data?.error || 'Unknown error'));
+      toast.error(t.agents.createError + ' ' + (error.response?.data?.error || 'Unknown error'));
     }
   };
 
@@ -78,7 +80,7 @@ const Agents = () => {
       }
       setQuestion('');
     } catch (error) {
-      alert(t.agents.answerError + ' ' + (error.response?.data?.error || 'Unknown error'));
+      toast.error(t.agents.answerError + ' ' + (error.response?.data?.error || 'Unknown error'));
     }
   };
 

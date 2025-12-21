@@ -28,6 +28,8 @@ const en = {
     sendingOtp: 'Sending...',
     otpSent: 'Verification Code Sent',
     otpSentTo: 'A verification code has been sent to:',
+    otpSentToEmail: 'Verification code sent to your email',
+    otpSentToPhone: 'Verification code sent to your phone',
     enterOtp: 'Verification Code',
     otpPlaceholder: 'Enter 6-digit code',
     verifyOtp: 'Verify & Login',
@@ -61,6 +63,12 @@ const en = {
     codeSentTo: 'We sent a 6-digit code to',
     yourEmail: 'your email',
     yourPhone: 'your phone',
+    // New flow messages
+    hasPasswordMessage: 'Please enter your password to login',
+    useOtpInstead: 'Use OTP instead',
+    invalidPassword: 'Invalid password. Please try again.',
+    passwordOptional: 'Setting a password is optional. You can skip and set it later.',
+    skipForNow: 'Skip for now',
   },
   
   // Main Page
@@ -173,6 +181,12 @@ const en = {
     existingTasks: 'Existing Tasks',
     hideCreateForm: 'Hide Create Form',
     createNewTask: '+ Create New Task',
+    // Tool selection
+    autoSelect: 'Auto-select',
+    recommended: 'Recommended',
+    noToolsAvailable: 'No extraction tools available for this file type',
+    onlyToolAvailable: 'Only',
+    supportsThisFormat: 'supports this file format',
   },
   
   // Knowledge Base

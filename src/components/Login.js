@@ -1,26 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api';
 import Logo from './Logo';
 import './Login.css';
 
 const Login = () => {
-  const [step, setStep] = useState('identifier'); // identifier, otp, password, setup-password
+  // Steps: 'identifier', 'password', 'otp', 'setup-password'
+  const [step, setStep] = useState('identifier');
   const [identifier, setIdentifier] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
-  const [loginMethod, setLoginMethod] = useState('otp'); // 'otp' or 'password'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [otpType, setOtpType] = useState(''); // 'email' or 'sms'
-  const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
+  
+  // Auth flow state from startLogin
+  const [tempCode, setTempCode] = useState('');
+  const [hasPassword, setHasPassword] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [usernameType, setUsernameType] = useState('');
+  
   const { login, user } = useAuth();
   const { t, toggleLanguage, language } = useLanguage();
+  const toast = useToast();
   const navigate = useNavigate();
 
   // Countdown timer for resend OTP
@@ -38,55 +45,127 @@ const Login = () => {
     }
   }, [user, navigate]);
 
-  const handleRequestOTP = async (e) => {
+  /**
+   * Step 1: Start login process
+   * Calls startLogin API and decides next step based on has_password
+   */
+  const handleStartLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     setMessage('');
 
     try {
-      const result = await authAPI.requestOTP(identifier);
-      if (result.success) {
-        setOtpType(result.otp_type);
-        setMessage(result.message);
-        setStep('otp');
-        setResendCountdown(60); // Start 60 second countdown
+      const result = await authAPI.startLogin(identifier);
+      
+      // Store auth flow state
+      setTempCode(result.temp_code);
+      setHasPassword(result.has_password);
+      setIsRegistered(result.is_registered);
+      setUsernameType(result.username_type);
+      
+      // If user has password, go to password step
+      // Otherwise, request OTP and go to OTP step
+      if (result.has_password) {
+        setStep('password');
+        setMessage(t.login.hasPasswordMessage || 'Please enter your password');
       } else {
-        setError(result.error || t.login.error);
+        // User doesn't have password - send OTP automatically
+        await handleRequestOTP(result.temp_code);
       }
     } catch (err) {
-      setError(err.response?.data?.error || err.response?.data?.message || t.login.error);
+      setError(err.response?.data?.username?.[0] || err.response?.data?.error || t.login.error);
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * Request OTP code
+   */
+  const handleRequestOTP = async (code = tempCode) => {
+    setLoading(true);
+    setError('');
+    setMessage('');
+
+    try {
+      await authAPI.requestOTP(code);
+      setMessage(
+        usernameType === 'email' 
+          ? t.login.otpSentToEmail || 'OTP sent to your email'
+          : t.login.otpSentToPhone || 'OTP sent to your phone'
+      );
+      setStep('otp');
+      setResendCountdown(60);
+    } catch (err) {
+      setError(err.response?.data?.detail || err.response?.data?.error || t.login.error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Verify OTP code
+   */
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const result = await authAPI.verifyOTP(identifier, otpCode);
+      const result = await authAPI.verifyOTP(tempCode, otpCode);
       if (result.success) {
-        if (result.needs_password_setup) {
-          setNeedsPasswordSetup(true);
+        // Check if this is a new user who needs to set password
+        if (!isRegistered) {
+          // New user - login first, then show password setup
+          await login(result);
+          toast.success(t.login.welcomeNew || 'Welcome! Your account has been created.');
           setStep('setup-password');
         } else {
-          // User already has password, login successful
           await login(result);
+          toast.success(t.login.welcomeNew || 'Welcome back!');
           navigate('/main');
         }
       } else {
         setError(result.error || t.login.otpError);
       }
     } catch (err) {
-      setError(err.response?.data?.error || t.login.otpError);
+      console.error('OTP verification error:', err);
+      setError(err.response?.data?.code?.[0] || err.response?.data?.error || t.login.otpError);
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * Password login
+   */
+  const handlePasswordLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const result = await authAPI.passwordLogin(tempCode, password);
+      if (result.success) {
+        // Login and fetch user profile
+        await login(result);
+        toast.success(t.login.welcomeNew || 'Welcome back!');
+        navigate('/main');
+      } else {
+        setError(result.error || t.login.error);
+      }
+    } catch (err) {
+      console.error('Password login error:', err);
+      setError(err.response?.data?.password?.[0] || err.response?.data?.error || t.login.invalidPassword);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Setup password for new users
+   */
   const handleSetupPassword = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -105,13 +184,9 @@ const Login = () => {
     }
 
     try {
-      const result = await authAPI.setupPassword(password, passwordConfirm);
-      if (result.success) {
-        await login(result);
-        navigate('/main');
-      } else {
-        setError(result.error || t.login.error);
-      }
+      await authAPI.setPassword(password);
+      // User is already logged in from OTP verification
+      navigate('/main');
     } catch (err) {
       setError(err.response?.data?.error || t.login.error);
     } finally {
@@ -119,50 +194,38 @@ const Login = () => {
     }
   };
 
-  const handlePasswordLogin = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    try {
-      const result = await authAPI.passwordLogin(identifier, password);
-      if (result.success) {
-        await login(result);
-        navigate('/main');
-      } else {
-        setError(result.error || t.login.error);
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || t.login.error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  /**
+   * Resend OTP
+   */
   const handleResendOTP = async () => {
-    if (resendCountdown > 0) return; // Prevent clicking during countdown
-    
-    setLoading(true);
+    if (resendCountdown > 0) return;
+    await handleRequestOTP(tempCode);
+  };
+
+  /**
+   * Switch to OTP login (when user has password but wants to use OTP)
+   */
+  const handleSwitchToOTP = async () => {
+    await handleRequestOTP(tempCode);
+  };
+
+  /**
+   * Go back to identifier step
+   */
+  const handleBack = () => {
+    setStep('identifier');
+    setPassword('');
+    setOtpCode('');
     setError('');
     setMessage('');
-    try {
-      const result = await authAPI.resendOTP(identifier);
-      if (result && result.success) {
-        setMessage(result.message || t.login.otpResent);
-        setResendCountdown(60); // Reset countdown to 60 seconds
-        setOtpCode(''); // Clear OTP input
-      } else {
-        setError(result?.error || t.login.error);
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || err.response?.data?.message || t.login.error);
-    } finally {
-      setLoading(false);
-    }
+    setResendCountdown(0);
+    setTempCode('');
+    setHasPassword(false);
   };
 
+  // Render identifier input step
   const renderIdentifierStep = () => (
-    <form onSubmit={loginMethod === 'otp' ? handleRequestOTP : (e) => { e.preventDefault(); setStep('password'); }}>
+    <form onSubmit={handleStartLogin}>
       <div className="form-group">
         <label htmlFor="identifier">{t.login.emailOrMobile}</label>
         <div className="input-wrapper">
@@ -174,6 +237,7 @@ const Login = () => {
             placeholder={t.login.placeholder}
             className="login-input"
             required
+            autoFocus
           />
           <svg className="input-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
@@ -181,44 +245,82 @@ const Login = () => {
         </div>
       </div>
 
-      <div className="login-method-toggle">
-        <button
-          type="button"
-          className={`method-btn ${loginMethod === 'otp' ? 'active' : ''}`}
-          onClick={() => setLoginMethod('otp')}
-        >
-          {t.login.loginWithOtp}
-        </button>
-        <button
-          type="button"
-          className={`method-btn ${loginMethod === 'password' ? 'active' : ''}`}
-          onClick={() => setLoginMethod('password')}
-        >
-          {t.login.loginWithPassword}
-        </button>
+      {error && <div className="error-message">{error}</div>}
+      {message && <div className="success-message">{message}</div>}
+
+      <button type="submit" disabled={loading} className="login-button">
+        {loading ? t.login.processing : t.login.continue}
+      </button>
+
+      <p className="info-text">{t.login.info}</p>
+    </form>
+  );
+
+  // Render password input step
+  const renderPasswordStep = () => (
+    <form onSubmit={handlePasswordLogin}>
+      <div className="step-info">
+        <p className="identifier-display">{identifier}</p>
+      </div>
+      
+      <div className="form-group">
+        <label htmlFor="password">{t.login.password}</label>
+        <div className="input-wrapper">
+          <input
+            type="password"
+            id="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={t.login.passwordPlaceholder}
+            className="login-input"
+            required
+            autoFocus
+          />
+          <svg className="input-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25h-10.5a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+          </svg>
+        </div>
       </div>
 
       {error && <div className="error-message">{error}</div>}
       {message && <div className="success-message">{message}</div>}
 
       <button type="submit" disabled={loading} className="login-button">
-        {loading ? t.login.processing : loginMethod === 'otp' ? t.login.sendOtp : t.login.continue}
+        {loading ? t.login.loggingIn : t.login.button}
       </button>
 
-      <p className="info-text">
-        {loginMethod === 'otp' 
-          ? t.login.info
-          : t.login.passwordLoginInfo}
-      </p>
+      <div className="alternative-login">
+        <button
+          type="button"
+          onClick={handleSwitchToOTP}
+          disabled={loading}
+          className="switch-method-btn"
+        >
+          {t.login.useOtpInstead || 'Use OTP instead'}
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={handleBack}
+        className="back-button-text"
+      >
+        {t.login.back}
+      </button>
     </form>
   );
 
+  // Render OTP input step
   const renderOTPStep = () => (
     <form onSubmit={handleVerifyOTP}>
+      <div className="step-info">
+        <p className="identifier-display">{identifier}</p>
+      </div>
+      
       <div className="form-group">
         <label>{t.login.enterOtp}</label>
         <p className="otp-info">
-          {t.login.codeSentTo} {otpType === 'email' ? t.login.yourEmail : t.login.yourPhone}
+          {t.login.codeSentTo} {usernameType === 'email' ? t.login.yourEmail : t.login.yourPhone}
         </p>
         <input
           type="tel"
@@ -234,6 +336,7 @@ const Login = () => {
           required
           className="otp-input"
           autoComplete="one-time-code"
+          autoFocus
         />
       </div>
 
@@ -266,13 +369,7 @@ const Login = () => {
 
       <button
         type="button"
-        onClick={() => { 
-          setStep('identifier'); 
-          setOtpCode(''); 
-          setError(''); 
-          setMessage('');
-          setResendCountdown(0);
-        }}
+        onClick={handleBack}
         className="back-button-text"
       >
         {t.login.back}
@@ -280,42 +377,7 @@ const Login = () => {
     </form>
   );
 
-  const renderPasswordStep = () => (
-    <form onSubmit={handlePasswordLogin}>
-      <div className="form-group">
-        <label htmlFor="password">{t.login.password}</label>
-        <div className="input-wrapper">
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={t.login.passwordPlaceholder}
-            className="login-input"
-            required
-          />
-          <svg className="input-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25h-10.5a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-          </svg>
-        </div>
-      </div>
-
-      {error && <div className="error-message">{error}</div>}
-
-      <button type="submit" disabled={loading} className="login-button">
-        {loading ? t.login.loggingIn : t.login.button}
-      </button>
-
-      <button
-        type="button"
-        onClick={() => { setStep('identifier'); setPassword(''); setError(''); }}
-        className="back-button-text"
-      >
-        {t.login.back}
-      </button>
-    </form>
-  );
-
+  // Render setup password step
   const renderSetupPasswordStep = () => (
     <form onSubmit={handleSetupPassword}>
       <div className="form-group">
@@ -333,6 +395,7 @@ const Login = () => {
             className="login-input"
             required
             minLength="8"
+            autoFocus
           />
           <svg className="input-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25h-10.5a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -361,8 +424,24 @@ const Login = () => {
 
       {error && <div className="error-message">{error}</div>}
 
-      <button type="submit" disabled={loading || password !== passwordConfirm || password.length < 8} className="login-button">
+      <button 
+        type="submit" 
+        disabled={loading || password !== passwordConfirm || password.length < 8} 
+        className="login-button"
+      >
         {loading ? t.login.settingUp : t.login.setPasswordContinue}
+      </button>
+
+      <p className="info-text optional-note">
+        {t.login.passwordOptional || 'You can skip this step and set password later'}
+      </p>
+      
+      <button
+        type="button"
+        onClick={() => navigate('/main')}
+        className="skip-button"
+      >
+        {t.login.skipForNow || 'Skip for now'}
       </button>
     </form>
   );
@@ -384,8 +463,8 @@ const Login = () => {
         <p className="subtitle">{t.login.subtitle}</p>
 
         {step === 'identifier' && renderIdentifierStep()}
-        {step === 'otp' && renderOTPStep()}
         {step === 'password' && renderPasswordStep()}
+        {step === 'otp' && renderOTPStep()}
         {step === 'setup-password' && renderSetupPasswordStep()}
       </div>
     </div>

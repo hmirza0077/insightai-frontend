@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { knowledgeBaseAPI, documentsAPI } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useToast } from '../contexts/ToastContext';
 import Logo from './Logo';
 import './KnowledgeBaseDetail.css';
 
@@ -9,6 +10,7 @@ const KnowledgeBaseDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { t, toggleLanguage, language } = useLanguage();
+  const toast = useToast();
   
   // State
   const [kb, setKb] = useState(null);
@@ -58,7 +60,7 @@ const KnowledgeBaseDetail = () => {
         setConversations(convsResponse.data || []);
       } catch (error) {
         console.error('Error loading KB:', error);
-        alert(t.kbDetail.loadError);
+        toast.error(t.kbDetail.loadError);
       } finally {
         setLoading(false);
       }
@@ -85,7 +87,7 @@ const KnowledgeBaseDetail = () => {
       setConversations(convsResponse.data || []);
     } catch (error) {
       console.error('Error loading KB:', error);
-      alert(t.kbDetail.loadError);
+      toast.error(t.kbDetail.loadError);
     } finally {
       setLoading(false);
     }
@@ -108,8 +110,9 @@ const KnowledgeBaseDetail = () => {
       });
       setKb({ ...kb, name: editName, description: editDescription });
       setIsEditing(false);
+      toast.success(t.kbDetail.saveSuccess || 'Saved successfully');
     } catch (error) {
-      alert(t.kbDetail.saveError);
+      toast.error(t.kbDetail.saveError);
     }
   };
 
@@ -118,9 +121,10 @@ const KnowledgeBaseDetail = () => {
     
     try {
       await knowledgeBaseAPI.delete(id);
+      toast.success(t.kbDetail.deleteSuccess || 'Deleted successfully');
       navigate('/knowledge-base');
     } catch (error) {
-      alert(t.kbDetail.deleteError);
+      toast.error(t.kbDetail.deleteError);
     }
   };
 
@@ -139,8 +143,9 @@ const KnowledgeBaseDetail = () => {
       setPageStart('');
       setPageEnd('');
       loadKnowledgeBase();
+      toast.success(t.kbDetail.addDocSuccess || 'Document added successfully');
     } catch (error) {
-      alert(error.response?.data?.error || t.kbDetail.addDocError);
+      toast.error(error.response?.data?.error || t.kbDetail.addDocError);
     }
   };
 
@@ -150,8 +155,9 @@ const KnowledgeBaseDetail = () => {
     try {
       await knowledgeBaseAPI.removeDocument(id, docId);
       loadKnowledgeBase();
+      toast.success(t.kbDetail.removeDocSuccess || 'Document removed');
     } catch (error) {
-      alert(t.kbDetail.removeDocError);
+      toast.error(t.kbDetail.removeDocError);
     }
   };
 
@@ -159,10 +165,10 @@ const KnowledgeBaseDetail = () => {
     setIndexing(true);
     try {
       const response = await knowledgeBaseAPI.index(id);
-      alert(t.kbDetail.indexSuccess.replace('{count}', response.data.indexed));
+      toast.success(t.kbDetail.indexSuccess.replace('{count}', response.data.indexed));
       loadKnowledgeBase();
     } catch (error) {
-      alert(error.response?.data?.error || t.kbDetail.indexError);
+      toast.error(error.response?.data?.error || t.kbDetail.indexError);
     } finally {
       setIndexing(false);
     }
@@ -177,7 +183,7 @@ const KnowledgeBaseDetail = () => {
       const response = await knowledgeBaseAPI.search(id, searchQuery);
       setSearchResults(response.data.results || []);
     } catch (error) {
-      alert(error.response?.data?.error || t.kbDetail.searchError);
+      toast.error(error.response?.data?.error || t.kbDetail.searchError);
     } finally {
       setSearching(false);
     }
@@ -195,7 +201,7 @@ const KnowledgeBaseDetail = () => {
         setQuestion('');
       }
     } catch (error) {
-      alert(error.response?.data?.error || t.kbDetail.askError);
+      toast.error(error.response?.data?.error || t.kbDetail.askError);
     } finally {
       setAsking(false);
     }
