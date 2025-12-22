@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { agentsAPI, knowledgeBaseAPI } from '../api';
 import { useNavigate } from 'react-router-dom';
@@ -54,7 +54,19 @@ const Agents = () => {
   const handleCreateAgent = async (e) => {
     e.preventDefault();
     try {
-      await agentsAPI.create(newAgent);
+      // Convert knowledge_base to knowledge_base_ids array
+      const agentData = {
+        name: newAgent.name,
+        description: newAgent.description,
+        status: 'active',  // Set as active by default
+      };
+      
+      // Add knowledge base if selected
+      if (newAgent.knowledge_base) {
+        agentData.knowledge_base_ids = [parseInt(newAgent.knowledge_base)];
+      }
+      
+      await agentsAPI.create(agentData);
       setShowCreateForm(false);
       setNewAgent({ name: '', description: '', knowledge_base: '' });
       loadAgents();
@@ -226,7 +238,7 @@ const Agents = () => {
                           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
                           </svg>
-                          {t.agents.kb} {knowledgeBases.find(kb => kb.id === agent.knowledge_base)?.name || 'N/A'}
+                          {t.agents.kb} {agent.knowledge_bases_count || (agent.knowledge_bases?.length) || 0}
                         </span>
                       </div>
                     </div>
@@ -279,6 +291,26 @@ const Agents = () => {
                           <div className="message-content">
                             <span className="message-label">{t.agents.answer}</span>
                             <p>{conv.answer}</p>
+                            {conv.knowledge_bases_used && conv.knowledge_bases_used.length > 0 && (
+                              <div className="kb-sources">
+                                <span className="sources-label">
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                                  </svg>
+                                  {t.agents.sources || 'Sources'}:
+                                </span>
+                                <div className="sources-list">
+                                  {conv.knowledge_bases_used.map((kbId, idx) => {
+                                    const kb = knowledgeBases.find(k => k.id === kbId);
+                                    return (
+                                      <span key={idx} className="source-tag">
+                                        {kb ? kb.name : `KB ${kbId}`}
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

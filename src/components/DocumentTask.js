@@ -169,6 +169,9 @@ const DocumentTask = () => {
       clearInterval(pollInterval.current);
     }
     
+    let retryCount = 0;
+    const maxRetries = 60; // Maximum 3 minutes of polling (60 * 3 seconds)
+    
     pollInterval.current = setInterval(async () => {
       try {
         const response = await documentsAPI.getTask(taskId);
@@ -196,9 +199,23 @@ const DocumentTask = () => {
               console.log('No conversations yet');
             }
           }
+        } else {
+          // Increment retry count for non-terminal states
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            clearInterval(pollInterval.current);
+            pollInterval.current = null;
+            toast.error('Task is taking too long. Please refresh the page to check status.');
+          }
         }
       } catch (error) {
         console.error('Polling error:', error);
+        retryCount++;
+        if (retryCount >= maxRetries) {
+          clearInterval(pollInterval.current);
+          pollInterval.current = null;
+          toast.error('Error checking task status. Please refresh the page.');
+        }
       }
     }, 3000);
   };

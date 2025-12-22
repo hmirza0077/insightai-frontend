@@ -42,6 +42,9 @@ const KnowledgeBaseDetail = () => {
   
   // Processing
   const [indexing, setIndexing] = useState(false);
+  const [fixingStatus, setFixingStatus] = useState(false);
+  const [diagnostics, setDiagnostics] = useState(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
 
   useEffect(() => {
     const fetchKnowledgeBase = async () => {
@@ -164,13 +167,131 @@ const KnowledgeBaseDetail = () => {
   const handleIndex = async () => {
     setIndexing(true);
     try {
-      const response = await knowledgeBaseAPI.index(id);
-      toast.success(t.kbDetail.indexSuccess.replace('{count}', response.data.indexed));
-      loadKnowledgeBase();
+      // Use async indexing for better handling of OCR-heavy documents
+      const response = await knowledgeBaseAPI.indexAsync(id);
+      
+      if (response.data.success) {
+        toast.success(
+          `Indexing started for ${response.data.documents_to_index} document(s). This may take a few minutes for scanned PDFs.`
+        );
+        
+        // Poll for completion
+        const taskId = response.data.celery_task_id;
+        if (taskId) {
+          pollIndexingStatus(taskId);
+        } else {
+          // No celery task, just reload after a delay
+          setTimeout(() => loadKnowledgeBase(), 3000);
+        }
+      } else if (response.data.message) {
+        toast.info(response.data.message);
+        loadKnowledgeBase();
+      }
     } catch (error) {
-      toast.error(error.response?.data?.error || t.kbDetail.indexError);
+      console.error('Indexing error:', error);
+      
+      // If async fails (e.g., Celery not running), fall back to sync
+      if (error.response?.status === 500 && error.response?.data?.error?.includes('Celery')) {
+        toast.warning('Background processing unavailable. Trying synchronous indexing...');
+        try {
+          const syncResponse = await knowledgeBaseAPI.index(id);
+          if (syncResponse.data.success) {
+            const chunksCreated = syncResponse.data.total_chunks || 
+              syncResponse.data.results?.reduce((sum, r) => sum + (r.chunks_created || 0), 0) || 0;
+            toast.success(
+              t.kbDetail.indexSuccess
+                .replace('{count}', syncResponse.data.indexed || 0)
+                .replace('{chunks}', chunksCreated)
+            );
+          }
+          loadKnowledgeBase();
+          
+          if (syncResponse.data.errors && syncResponse.data.errors.length > 0) {
+            syncResponse.data.errors.forEach(err => {
+              toast.error(`Error: ${err.error}`);
+            });
+          }
+        } catch (syncError) {
+          toast.error(syncError.response?.data?.error || t.kbDetail.indexError);
+        }
+      } else {
+        toast.error(error.response?.data?.error || t.kbDetail.indexError);
+      }
+      
+      // Try to refresh status to fix stuck state
+      try {
+        await knowledgeBaseAPI.refreshStatus(id);
+        loadKnowledgeBase();
+      } catch (e) {
+        console.error('Failed to refresh status:', e);
+      }
     } finally {
       setIndexing(false);
+    }
+  };
+
+  const pollIndexingStatus = async (taskId) => {
+    const maxAttempts = 60; // 5 minutes max
+    let attempts = 0;
+    
+    const poll = async () => {
+      try {
+        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/tasks/${taskId}/`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          }
+        });
+        const task = await response.json();
+        
+        if (task.status === 'completed') {
+          toast.success('Indexing completed successfully!');
+          loadKnowledgeBase();
+          return;
+        } else if (task.status === 'failed') {
+          toast.error(`Indexing failed: ${task.error || 'Unknown error'}`);
+          loadKnowledgeBase();
+          return;
+        } else if (attempts < maxAttempts) {
+          attempts++;
+          setTimeout(poll, 5000); // Poll every 5 seconds
+        } else {
+          toast.warning('Indexing is taking longer than expected. Please refresh the page to check status.');
+          loadKnowledgeBase();
+        }
+      } catch (error) {
+        console.error('Error polling task status:', error);
+        loadKnowledgeBase();
+      }
+    };
+    
+    setTimeout(poll, 3000); // Start polling after 3 seconds
+  };
+
+  const handleFixStatus = async () => {
+    setFixingStatus(true);
+    try {
+      const response = await knowledgeBaseAPI.refreshStatus(id);
+      const data = response.data;
+      let message = `Status: ${data.old_status} → ${data.new_status}`;
+      if (data.processing_documents_reset > 0) {
+        message += ` (${data.processing_documents_reset} stuck documents reset)`;
+      }
+      toast.success(message);
+      loadKnowledgeBase();
+    } catch (error) {
+      toast.error('Failed to refresh status');
+    } finally {
+      setFixingStatus(false);
+    }
+  };
+
+  const handleShowDiagnostics = async () => {
+    try {
+      const response = await knowledgeBaseAPI.diagnostics(id);
+      setDiagnostics(response.data);
+      setShowDiagnostics(true);
+    } catch (error) {
+      toast.error('Failed to load diagnostics');
     }
   };
 
@@ -264,6 +385,19 @@ const KnowledgeBaseDetail = () => {
             <span className={`status-badge status-${effectiveStatus}`}>
               {t.kbDetail.status[effectiveStatus] || effectiveStatus}
             </span>
+            {(kb.status === 'processing' || kb.status === 'error') && (
+              <button onClick={handleFixStatus} disabled={fixingStatus} className="fix-status-btn" title="Fix stuck status">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                {fixingStatus ? 'Fixing...' : 'Fix Status'}
+              </button>
+            )}
+            <button onClick={handleShowDiagnostics} className="diagnostics-btn" title="Show diagnostics">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+              </svg>
+            </button>
             <button onClick={toggleLanguage} className="lang-btn">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3" />
@@ -588,6 +722,116 @@ const KnowledgeBaseDetail = () => {
               </button>
               <button onClick={handleAddDocument} disabled={!selectedDocId} className="modal-confirm-btn">
                 {t.kbDetail.addDocument}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Diagnostics Modal */}
+      {showDiagnostics && diagnostics && (
+        <div className="modal-overlay" onClick={() => setShowDiagnostics(false)}>
+          <div className="modal diagnostics-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Knowledge Base Diagnostics</h3>
+            
+            <div className="diagnostics-section">
+              <h4>Status</h4>
+              <div className="diagnostics-grid">
+                <div className="diag-item">
+                  <span className="diag-label">Current Status:</span>
+                  <span className={`diag-value status-${diagnostics.knowledge_base.current_status}`}>
+                    {diagnostics.knowledge_base.current_status}
+                  </span>
+                </div>
+                <div className="diag-item">
+                  <span className="diag-label">Expected Status:</span>
+                  <span className={`diag-value status-${diagnostics.knowledge_base.expected_status}`}>
+                    {diagnostics.knowledge_base.expected_status}
+                  </span>
+                </div>
+                {diagnostics.knowledge_base.status_mismatch && (
+                  <div className="diag-warning">
+                    ⚠️ Status mismatch detected! Use "Fix Status" button.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="diagnostics-section">
+              <h4>Summary</h4>
+              <div className="diagnostics-grid">
+                <div className="diag-item">
+                  <span className="diag-label">Total Documents:</span>
+                  <span className="diag-value">{diagnostics.summary.total_documents}</span>
+                </div>
+                <div className="diag-item">
+                  <span className="diag-label">Indexed:</span>
+                  <span className="diag-value">{diagnostics.summary.indexed_documents}</span>
+                </div>
+                <div className="diag-item">
+                  <span className="diag-label">With Chunks:</span>
+                  <span className="diag-value">{diagnostics.summary.documents_with_chunks}</span>
+                </div>
+                <div className="diag-item">
+                  <span className="diag-label">Total Chunks:</span>
+                  <span className="diag-value">{diagnostics.summary.total_chunks}</span>
+                </div>
+                <div className="diag-item">
+                  <span className="diag-label">Pending:</span>
+                  <span className="diag-value">{diagnostics.summary.pending_documents}</span>
+                </div>
+                <div className="diag-item">
+                  <span className="diag-label">Errors:</span>
+                  <span className="diag-value">{diagnostics.summary.error_documents}</span>
+                </div>
+              </div>
+            </div>
+
+            {diagnostics.recommendations && diagnostics.recommendations.length > 0 && (
+              <div className="diagnostics-section">
+                <h4>Recommendations</h4>
+                <div className="recommendations-list">
+                  {diagnostics.recommendations.map((rec, idx) => (
+                    <div key={idx} className={`recommendation ${rec.type}`}>
+                      <span className="rec-icon">
+                        {rec.type === 'status_fix' && '🔧'}
+                        {rec.type === 'reindex' && '🔄'}
+                        {rec.type === 'document_error' && '❌'}
+                        {rec.type === 'stuck_processing' && '⏳'}
+                        {rec.type === 'missing_tool' && '⚠️'}
+                      </span>
+                      <span className="rec-message">{rec.message}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="diagnostics-section">
+              <h4>Documents</h4>
+              <div className="documents-diag-list">
+                {diagnostics.documents.map((doc, idx) => (
+                  <div key={idx} className={`doc-diag-item status-${doc.status}`}>
+                    <div className="doc-diag-name">{doc.filename}</div>
+                    <div className="doc-diag-details">
+                      <span>Status: {doc.status}</span>
+                      <span>Chunks: {doc.chunk_count}</span>
+                      <span>Words: {doc.word_count}</span>
+                    </div>
+                    {doc.error_message && (
+                      <div className="doc-diag-error">{doc.error_message}</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={() => setShowDiagnostics(false)} className="modal-cancel-btn">
+                Close
+              </button>
+              <button onClick={handleFixStatus} disabled={fixingStatus} className="modal-confirm-btn">
+                {fixingStatus ? 'Fixing...' : 'Fix Status'}
               </button>
             </div>
           </div>

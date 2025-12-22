@@ -848,3 +848,224 @@
 
 
 
+
+/* Fix Status Button */
+.fix-status-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(251, 191, 36, 0.1);
+  color: var(--yellow-700);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-family: inherit;
+  transition: var(--transition-normal);
+}
+
+.fix-status-btn:hover:not(:disabled) {
+  background: rgba(251, 191, 36, 0.2);
+  border-color: rgba(251, 191, 36, 0.5);
+}
+
+.fix-status-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fix-status-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Diagnostics Button */
+.diagnostics-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.12);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 0.5rem;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-normal);
+}
+
+.diagnostics-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.diagnostics-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Diagnostics Modal */
+.diagnostics-modal {
+  max-width: 700px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.diagnostics-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.diagnostics-section:last-of-type {
+  border-bottom: none;
+}
+
+.diagnostics-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gray-700);
+}
+
+.diagnostics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.diag-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.diag-label {
+  font-size: 0.8rem;
+  color: var(--gray-500);
+}
+
+.diag-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--gray-800);
+}
+
+.diag-value.status-ready {
+  color: var(--success-600);
+}
+
+.diag-value.status-processing {
+  color: var(--warning-600);
+}
+
+.diag-value.status-error {
+  color: var(--error-600);
+}
+
+.diag-value.status-empty {
+  color: var(--gray-500);
+}
+
+.diag-warning {
+  grid-column: 1 / -1;
+  background: var(--warning-50);
+  color: var(--warning-700);
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+}
+
+.recommendations-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recommendation {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+}
+
+.recommendation.status_fix,
+.recommendation.reindex,
+.recommendation.stuck_processing {
+  background: var(--warning-50);
+  color: var(--warning-700);
+}
+
+.recommendation.document_error {
+  background: var(--error-50);
+  color: var(--error-700);
+}
+
+.recommendation.missing_tool {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.rec-icon {
+  font-size: 1.1rem;
+}
+
+.rec-message {
+  flex: 1;
+}
+
+.documents-diag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.doc-diag-item {
+  padding: 0.75rem;
+  border-radius: var(--radius-md);
+  background: var(--gray-50);
+  border-left: 3px solid var(--gray-300);
+}
+
+.doc-diag-item.status-indexed {
+  border-left-color: var(--success-500);
+}
+
+.doc-diag-item.status-pending {
+  border-left-color: var(--warning-500);
+}
+
+.doc-diag-item.status-error {
+  border-left-color: var(--error-500);
+}
+
+.doc-diag-item.status-processing {
+  border-left-color: var(--primary-500);
+}
+
+.doc-diag-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--gray-800);
+  margin-bottom: 0.25rem;
+}
+
+.doc-diag-details {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: var(--gray-600);
+}
+
+.doc-diag-error {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: var(--error-50);
+  color: var(--error-700);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+}

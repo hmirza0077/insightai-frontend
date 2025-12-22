@@ -8,8 +8,10 @@ import './KnowledgeBase.css';
 
 const KnowledgeBase = () => {
   const [knowledgeBases, setKnowledgeBases] = useState([]);
+  const [deletedKBs, setDeletedKBs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showDeletedModal, setShowDeletedModal] = useState(false);
   const [newKBName, setNewKBName] = useState('');
   const [newKBDescription, setNewKBDescription] = useState('');
   const [creating, setCreating] = useState(false);
@@ -32,6 +34,40 @@ const KnowledgeBase = () => {
     }
   };
 
+  const loadDeletedKBs = async () => {
+    try {
+      const response = await knowledgeBaseAPI.listDeleted();
+      setDeletedKBs(response.data.knowledge_bases || response.data || []);
+    } catch (error) {
+      console.error('Error loading deleted knowledge bases:', error);
+    }
+  };
+
+  const handleRestore = async (kbId) => {
+    try {
+      await knowledgeBaseAPI.restore(kbId);
+      toast.success('Knowledge base restored successfully');
+      loadDeletedKBs();
+      loadKnowledgeBases();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Error restoring knowledge base');
+    }
+  };
+
+  const handleHardDelete = async (kbId) => {
+    if (!window.confirm('Are you sure you want to permanently delete this knowledge base? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      await knowledgeBaseAPI.hardDelete(kbId);
+      toast.success('Knowledge base permanently deleted');
+      loadDeletedKBs();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Error deleting knowledge base');
+    }
+  };
+
   const handleCreateAgent = (e, kbId) => {
     e.stopPropagation();
     navigate(`/agents?kb_id=${kbId}`);
@@ -45,11 +81,22 @@ const KnowledgeBase = () => {
     e.preventDefault();
     if (!newKBName.trim()) return;
     
+    // Input validation
+    if (newKBName.length > 255) {
+      toast.error('Name is too long (maximum 255 characters)');
+      return;
+    }
+    
+    if (newKBDescription.length > 1000) {
+      toast.error('Description is too long (maximum 1000 characters)');
+      return;
+    }
+    
     setCreating(true);
     try {
       const response = await knowledgeBaseAPI.create({
-        name: newKBName,
-        description: newKBDescription
+        name: newKBName.trim(),
+        description: newKBDescription.trim()
       });
       setShowCreateModal(false);
       setNewKBName('');
@@ -92,6 +139,12 @@ const KnowledgeBase = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
               </svg>
               {t.kb.createNew}
+            </button>
+            <button onClick={() => { loadDeletedKBs(); setShowDeletedModal(true); }} className="view-deleted-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+              View Deleted
             </button>
           </div>
         </div>
@@ -207,6 +260,65 @@ const KnowledgeBase = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Deleted KBs Modal */}
+      {showDeletedModal && (
+        <div className="modal-overlay" onClick={() => setShowDeletedModal(false)}>
+          <div className="modal large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Deleted Knowledge Bases</h3>
+              <button onClick={() => setShowDeletedModal(false)} className="modal-close-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="modal-content">
+              {deletedKBs.length === 0 ? (
+                <div className="empty-state-small">
+                  <p>No deleted knowledge bases</p>
+                </div>
+              ) : (
+                <div className="deleted-kb-list">
+                  {deletedKBs.map((kb) => (
+                    <div key={kb.id} className="deleted-kb-item">
+                      <div className="kb-info">
+                        <h4>{kb.name}</h4>
+                        {kb.description && <p>{kb.description}</p>}
+                        <span className="deleted-date">
+                          Deleted: {new Date(kb.deleted_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="kb-actions">
+                        <button 
+                          onClick={() => handleRestore(kb.id)} 
+                          className="restore-btn"
+                          title="Restore"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+                          </svg>
+                          Restore
+                        </button>
+                        <button 
+                          onClick={() => handleHardDelete(kb.id)} 
+                          className="hard-delete-btn"
+                          title="Permanently Delete"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                          Delete Forever
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

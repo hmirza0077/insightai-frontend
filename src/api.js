@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+// Use environment variable or fallback to localhost
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
 // Create axios instance
 const api = axios.create({
@@ -44,6 +45,16 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    
+    // Log API errors for debugging
+    if (process.env.REACT_APP_DEBUG === 'true') {
+      console.error('[API] Error:', {
+        url: error.config?.url,
+        method: error.config?.method,
+        status: error.response?.status,
+        data: error.response?.data
+      });
+    }
     
     // If 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
@@ -155,7 +166,7 @@ export const authAPI = {
    * Set/Change password (requires authentication)
    */
   setPassword: async (password) => {
-    const response = await api.patch('/user/profile/change-password/', { password });
+    await api.patch('/user/profile/change-password/', { password });
     return { success: true };
   },
   
@@ -204,8 +215,11 @@ export const documentsAPI = {
   
   getTask: (taskId) => api.get(`/documents/tasks/${taskId}/`),
   
-  // Process a task
+  // Process a task (sync - legacy)
   processTask: (taskId) => api.post(`/documents/tasks/${taskId}/process/`),
+  
+  // Process a task (async - recommended)
+  processTaskAsync: (taskId) => api.post(`/documents/tasks/${taskId}/process-async/`),
   
   // Get document chunks (for KB tasks)
   getChunks: (taskId) => api.get(`/documents/tasks/${taskId}/chunks/`),
@@ -265,8 +279,17 @@ export const knowledgeBaseAPI = {
   getDocument: (id, docId) => api.get(`/knowledge-base/${id}/documents/${docId}/`),
   removeDocument: (id, docId) => api.delete(`/knowledge-base/${id}/documents/${docId}/`),
   
-  // Indexing
+  // Indexing (sync - legacy)
   index: (id) => api.post(`/knowledge-base/${id}/index/`),
+  
+  // Indexing (async - recommended)
+  indexAsync: (id) => api.post(`/knowledge-base/${id}/index-async/`),
+  
+  // Refresh/fix KB status
+  refreshStatus: (id) => api.post(`/knowledge-base/${id}/refresh-status/`),
+  
+  // Diagnostics - for debugging KB issues
+  diagnostics: (id) => api.get(`/knowledge-base/${id}/diagnostics/`),
   
   // Search & Q&A
   search: (id, query, topK = 5, documentIds = null) => 
@@ -312,6 +335,50 @@ export const agentsAPI = {
   
   // Session Management
   deleteSession: (sessionId) => api.delete(`/agents/sessions/${sessionId}/`),
+};
+
+// Task Status API (for Celery tasks)
+export const tasksAPI = {
+  // Get status of a specific task
+  getStatus: (taskId) => api.get(`/tasks/${taskId}/`),
+  
+  // List all tasks for current user
+  list: (params = {}) => api.get('/tasks/', { params }),
+  
+  // Poll task status until completion
+  pollUntilComplete: async (taskId, options = {}) => {
+    const {
+      interval = 2000,      // Poll every 2 seconds
+      maxAttempts = 90,     // Max 3 minutes
+      onProgress = null,    // Callback for progress updates
+    } = options;
+    
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      try {
+        const response = await api.get(`/tasks/${taskId}/`);
+        const task = response.data;
+        
+        if (onProgress) {
+          onProgress(task);
+        }
+        
+        if (['completed', 'failed', 'revoked'].includes(task.status)) {
+          return task;
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, interval));
+        attempts++;
+      } catch (error) {
+        console.error('Error polling task status:', error);
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, interval));
+      }
+    }
+    
+    throw new Error('Task polling timeout');
+  },
 };
 
 export default api;
