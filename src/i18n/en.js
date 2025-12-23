@@ -380,6 +380,10 @@ const en = {
     sessionDeleteError: 'Failed to delete conversation',
     thinking: 'Thinking...',
     sources: 'Sources',
+    provider: 'LLM Provider',
+    model: 'Model',
+    providerAvailable: 'Available',
+    providerUnavailable: 'API Key Required',
   },
   
   // Language

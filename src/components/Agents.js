@@ -11,9 +11,16 @@ import './Agents.css';
 const Agents = () => {
   const [agents, setAgents] = useState([]);
   const [knowledgeBases, setKnowledgeBases] = useState([]);
+  const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newAgent, setNewAgent] = useState({ name: '', description: '', knowledge_base: '' });
+  const [newAgent, setNewAgent] = useState({ 
+    name: '', 
+    description: '', 
+    knowledge_base: '',
+    provider: 'openai',
+    model: 'gpt-4o-mini'
+  });
   const [selectedAgent, setSelectedAgent] = useState(null);
   const [question, setQuestion] = useState('');
   const [conversations, setConversations] = useState([]);
@@ -30,6 +37,7 @@ const Agents = () => {
   useEffect(() => {
     loadAgents();
     loadKnowledgeBases();
+    loadProviders();
     const kbId = searchParams.get('kb_id');
     if (kbId) {
       setNewAgent(prev => ({ ...prev, knowledge_base: kbId }));
@@ -55,6 +63,29 @@ const Agents = () => {
     } catch (error) {
       console.error('Error loading knowledge bases:', error);
     }
+  };
+
+  const loadProviders = async () => {
+    try {
+      const response = await agentsAPI.getProviders();
+      setProviders(response.data.providers || []);
+    } catch (error) {
+      console.error('Error loading providers:', error);
+    }
+  };
+
+  const getModelsForProvider = (providerId) => {
+    const provider = providers.find(p => p.id === providerId);
+    return provider?.models || [];
+  };
+
+  const handleProviderChange = (providerId) => {
+    const provider = providers.find(p => p.id === providerId);
+    setNewAgent(prev => ({
+      ...prev,
+      provider: providerId,
+      model: provider?.default_model || ''
+    }));
   };
 
   const loadSessions = useCallback(async (agentId) => {
@@ -85,13 +116,15 @@ const Agents = () => {
         name: newAgent.name,
         description: newAgent.description,
         status: 'active',
+        provider: newAgent.provider,
+        model: newAgent.model,
       };
       if (newAgent.knowledge_base) {
         agentData.knowledge_base_ids = [parseInt(newAgent.knowledge_base)];
       }
       await agentsAPI.create(agentData);
       setShowCreateForm(false);
-      setNewAgent({ name: '', description: '', knowledge_base: '' });
+      setNewAgent({ name: '', description: '', knowledge_base: '', provider: 'openai', model: 'gpt-4o-mini' });
       loadAgents();
       toast.success(t.agents.createSuccess);
     } catch (error) {
@@ -259,6 +292,53 @@ const Agents = () => {
                     </select>
                   </div>
                 </div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>{t.agents.provider || 'LLM Provider'}</label>
+                    <select 
+                      value={newAgent.provider} 
+                      onChange={(e) => handleProviderChange(e.target.value)} 
+                      className="form-select"
+                    >
+                      {providers.map((provider) => (
+                        <option key={provider.id} value={provider.id} disabled={!provider.available}>
+                          {provider.name} {!provider.available && '(Not Configured)'}
+                        </option>
+                      ))}
+                    </select>
+                    {providers.length > 0 && (
+                      <div className="provider-status">
+                        {providers.find(p => p.id === newAgent.provider)?.available ? (
+                          <span className="status-available">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="14" height="14">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                            {t.agents.providerAvailable || 'Available'}
+                          </span>
+                        ) : (
+                          <span className="status-unavailable">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="14" height="14">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            {t.agents.providerUnavailable || 'API Key Required'}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="form-group">
+                    <label>{t.agents.model || 'Model'}</label>
+                    <select 
+                      value={newAgent.model} 
+                      onChange={(e) => setNewAgent({ ...newAgent, model: e.target.value })} 
+                      className="form-select"
+                    >
+                      {getModelsForProvider(newAgent.provider).map(([modelId, modelName]) => (
+                        <option key={modelId} value={modelId}>{modelName}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <div className="form-group">
                   <label>{t.agents.description}</label>
                   <textarea value={newAgent.description} onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })} rows="3" className="form-textarea" />
@@ -303,12 +383,20 @@ const Agents = () => {
                         <div className="agent-info">
                           <h3>{agent.name}</h3>
                           {agent.description && <p>{agent.description}</p>}
-                          <span className="agent-kb">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                            </svg>
-                            {t.agents.kb} {agent.knowledge_bases_count || (agent.knowledge_bases?.length) || 0}
-                          </span>
+                          <div className="agent-meta">
+                            <span className="agent-kb">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                              </svg>
+                              {t.agents.kb} {agent.knowledge_bases_count || (agent.knowledge_bases?.length) || 0}
+                            </span>
+                            <span className="agent-provider">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6.75v10.5a2.25 2.25 0 002.25 2.25zm.75-12h9v9h-9v-9z" />
+                              </svg>
+                              {agent.provider || 'openai'}
+                            </span>
+                          </div>
                         </div>
                       </div>
                       <button className="agent-delete-btn" onClick={(e) => { e.stopPropagation(); setShowDeleteConfirm(agent.id); }} title={t.delete || 'Delete'}>

@@ -381,6 +381,10 @@ const fa = {
     sessionDeleteError: 'حذف گفتگو ناموفق بود',
     thinking: 'در حال فکر کردن...',
     sources: 'منابع',
+    provider: 'ارائه‌دهنده LLM',
+    model: 'مدل',
+    providerAvailable: 'در دسترس',
+    providerUnavailable: 'نیاز به کلید API',
   },
   
   // Language

@@ -320,6 +320,9 @@ export const knowledgeBaseAPI = {
 
 // Agents API
 export const agentsAPI = {
+  // LLM Providers
+  getProviders: () => api.get('/agents/providers/'),
+  
   // CRUD
   list: (params = {}) => api.get('/agents/', { params }),
   create: (data) => api.post('/agents/', data),
