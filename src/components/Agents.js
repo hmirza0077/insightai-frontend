@@ -28,6 +28,9 @@ const Agents = () => {
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [chatLoading, setChatLoading] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [diagnosticsData, setDiagnosticsData] = useState(null);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(false);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t, toggleLanguage, language } = useLanguage();
@@ -177,6 +180,19 @@ const Agents = () => {
       toast.success(t.agents.sessionDeleted || 'Session deleted');
     } catch (error) {
       toast.error(t.agents.sessionDeleteError || 'Failed to delete session');
+    }
+  };
+
+  const loadDiagnostics = async (agentId) => {
+    setDiagnosticsLoading(true);
+    try {
+      const response = await agentsAPI.getDiagnostics(agentId);
+      setDiagnosticsData(response.data);
+      setShowDiagnostics(true);
+    } catch (error) {
+      toast.error(t.agents.diagnosticsError || 'Failed to load diagnostics');
+    } finally {
+      setDiagnosticsLoading(false);
     }
   };
 
@@ -455,6 +471,17 @@ const Agents = () => {
                       </div>
                       <h2>{t.agents.chatWith} {selectedAgent.name}</h2>
                     </div>
+                    <button 
+                      className="diagnostics-btn" 
+                      onClick={() => loadDiagnostics(selectedAgent.id)}
+                      disabled={diagnosticsLoading}
+                      title={t.agents.diagnostics || 'Diagnostics'}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+                      </svg>
+                      {diagnosticsLoading ? (t.loading || 'Loading...') : (t.agents.diagnostics || 'Diagnostics')}
+                    </button>
                   </div>
                   
                   <div className="conversations">
@@ -551,6 +578,124 @@ const Agents = () => {
               <button className="modal-btn danger" onClick={() => handleDeleteAgent(showDeleteConfirm)}>
                 {t.delete || 'Delete'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Diagnostics Modal */}
+      {showDiagnostics && diagnosticsData && (
+        <div className="modal-overlay" onClick={() => setShowDiagnostics(false)}>
+          <div className="modal-content diagnostics-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t.agents.diagnosticsTitle || 'Agent Diagnostics'}</h3>
+              <button className="modal-close" onClick={() => setShowDiagnostics(false)}>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="diagnostics-content">
+              {/* Summary */}
+              <div className="diagnostics-section">
+                <h4>{t.agents.summary || 'Summary'}</h4>
+                <div className="diagnostics-grid">
+                  <div className={`diagnostics-item ${diagnosticsData.summary.can_answer_questions ? 'success' : 'error'}`}>
+                    <span className="label">{t.agents.canAnswer || 'Can Answer Questions'}</span>
+                    <span className="value">{diagnosticsData.summary.can_answer_questions ? '✅' : '❌'}</span>
+                  </div>
+                  <div className="diagnostics-item">
+                    <span className="label">{t.agents.connectedKBs || 'Connected KBs'}</span>
+                    <span className="value">{diagnosticsData.summary.connected_kbs}</span>
+                  </div>
+                  <div className="diagnostics-item">
+                    <span className="label">{t.agents.readyKBs || 'Ready KBs'}</span>
+                    <span className="value">{diagnosticsData.summary.ready_kbs}</span>
+                  </div>
+                  <div className="diagnostics-item">
+                    <span className="label">{t.agents.totalChunks || 'Total Chunks'}</span>
+                    <span className="value">{diagnosticsData.summary.total_chunks_available}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* LLM Info */}
+              <div className="diagnostics-section">
+                <h4>{t.agents.llmInfo || 'LLM Provider'}</h4>
+                <div className="diagnostics-grid">
+                  <div className="diagnostics-item">
+                    <span className="label">{t.agents.provider || 'Provider'}</span>
+                    <span className="value">{diagnosticsData.llm_info?.provider}</span>
+                  </div>
+                  <div className="diagnostics-item">
+                    <span className="label">{t.agents.model || 'Model'}</span>
+                    <span className="value">{diagnosticsData.llm_info?.model}</span>
+                  </div>
+                  <div className={`diagnostics-item ${diagnosticsData.llm_info?.provider_available ? 'success' : 'error'}`}>
+                    <span className="label">{t.agents.providerStatus || 'Status'}</span>
+                    <span className="value">{diagnosticsData.llm_info?.provider_available ? '✅ Available' : '❌ Not Available'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Search Test */}
+              {diagnosticsData.search_test && (
+                <div className="diagnostics-section">
+                  <h4>{t.agents.searchTest || 'Search Test'}</h4>
+                  <div className={`diagnostics-status ${diagnosticsData.search_test.success ? 'success' : 'error'}`}>
+                    {diagnosticsData.search_test.success ? (
+                      <>
+                        <span>✅ {t.agents.searchWorking || 'Search is working'}</span>
+                        <span className="detail">{t.agents.topScore || 'Top Score'}: {diagnosticsData.search_test.top_result_score?.toFixed(3)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>❌ {t.agents.searchFailed || 'Search failed'}</span>
+                        <span className="detail">{diagnosticsData.search_test.error}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Knowledge Bases */}
+              <div className="diagnostics-section">
+                <h4>{t.agents.knowledgeBases || 'Knowledge Bases'}</h4>
+                {diagnosticsData.knowledge_bases.length === 0 ? (
+                  <p className="no-data">{t.agents.noKBConnected || 'No knowledge bases connected'}</p>
+                ) : (
+                  diagnosticsData.knowledge_bases.map((kb) => (
+                    <div key={kb.id} className="kb-diagnostics">
+                      <div className="kb-header">
+                        <span className="kb-name">{kb.name}</span>
+                        <span className={`kb-status ${kb.status}`}>{kb.status}</span>
+                      </div>
+                      <div className="kb-stats">
+                        <span>{t.agents.documents || 'Documents'}: {kb.total_documents}</span>
+                        <span>{t.agents.chunks || 'Chunks'}: {kb.actual_chunk_count}</span>
+                      </div>
+                      {kb.documents.length > 0 && (
+                        <div className="kb-documents">
+                          {kb.documents.map((doc) => (
+                            <div key={doc.id} className={`doc-item ${doc.status}`}>
+                              <span className="doc-name">{doc.filename}</span>
+                              <span className="doc-status">{doc.status}</span>
+                              <span className="doc-chunks">{doc.chunk_count} chunks</span>
+                              {doc.text_preview && (
+                                <div className="doc-preview">
+                                  <strong>{t.agents.textPreview || 'Text Preview'}:</strong>
+                                  <p>{doc.text_preview}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         </div>

@@ -323,6 +323,9 @@ export const agentsAPI = {
   // LLM Providers
   getProviders: () => api.get('/agents/providers/'),
   
+  // Diagnostics
+  getDiagnostics: (id) => api.get(`/agents/${id}/diagnostics/`),
+  
   // CRUD
   list: (params = {}) => api.get('/agents/', { params }),
   create: (data) => api.post('/agents/', data),
