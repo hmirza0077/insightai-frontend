@@ -98,6 +98,14 @@ const fa = {
     uploadSuccess: 'فایل با موفقیت آپلود شد!',
     uploadError: 'آپلود ناموفق بود:',
     selectFileFirst: 'لطفاً یک فایل انتخاب کنید',
+    // Document editing
+    enterFileName: 'لطفاً نام فایل را وارد کنید',
+    renameSuccess: 'نام سند با موفقیت تغییر کرد',
+    renameError: 'تغییر نام سند ناموفق بود',
+    deleteSuccess: 'سند با موفقیت حذف شد',
+    deleteError: 'حذف سند ناموفق بود',
+    confirmDelete: 'حذف سند؟',
+    confirmDeleteMessage: 'این عمل سند و تمام وظایف مرتبط را برای همیشه حذف می‌کند. این عمل قابل بازگشت نیست.',
   },
   
   // Document Process
@@ -188,6 +196,24 @@ const fa = {
     noToolsAvailable: 'ابزار استخراج برای این نوع فایل در دسترس نیست',
     onlyToolAvailable: 'فقط',
     supportsThisFormat: 'از این فرمت فایل پشتیبانی می‌کند',
+    // DPI settings
+    dpiSetting: 'کیفیت OCR (DPI)',
+    dpiHint: 'DPI بالاتر = کیفیت بهتر اما پردازش کندتر',
+    // Commercial tools
+    commercialTools: 'ابزارهای OCR تجاری',
+    openSourceTools: 'ابزارهای متن‌باز',
+    requiresApiKey: 'نیاز به کلید API',
+    pricing: 'قیمت‌گذاری',
+    // Cost estimation
+    estimatedCost: 'هزینه تخمینی',
+    extractionCost: 'استخراج',
+    translationCost: 'ترجمه',
+    embeddingCost: 'پایگاه دانش',
+    totalCost: 'مجموع',
+    walletBalance: 'موجودی کیف پول',
+    insufficientBalance: 'موجودی کافی نیست. لطفاً اعتبار اضافه کنید.',
+    costBreakdown: 'جزئیات هزینه',
+    estimatingCost: 'در حال تخمین هزینه...',
   },
   
   // Knowledge Base
@@ -342,6 +368,19 @@ const fa = {
     createSuccess: 'عامل با موفقیت ایجاد شد!',
     createError: 'ایجاد عامل ناموفق بود:',
     answerError: 'دریافت پاسخ ناموفق بود:',
+    deleteSuccess: 'عامل با موفقیت حذف شد!',
+    deleteError: 'حذف عامل ناموفق بود',
+    deleteConfirmTitle: 'حذف عامل؟',
+    deleteConfirmMessage: 'این کار عامل و تمام گفتگوهای آن را برای همیشه حذف می‌کند. این عمل قابل بازگشت نیست.',
+    conversations: 'گفتگوها',
+    newChat: 'گفتگوی جدید',
+    noSessions: 'هنوز گفتگویی نیست',
+    untitledChat: 'گفتگوی بدون عنوان',
+    messages: 'پیام',
+    sessionDeleted: 'گفتگو حذف شد',
+    sessionDeleteError: 'حذف گفتگو ناموفق بود',
+    thinking: 'در حال فکر کردن...',
+    sources: 'منابع',
   },
   
   // Language

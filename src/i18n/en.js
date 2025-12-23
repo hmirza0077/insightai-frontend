@@ -97,6 +97,14 @@ const en = {
     uploadSuccess: 'File uploaded successfully!',
     uploadError: 'Upload failed:',
     selectFileFirst: 'Please select a file',
+    // Document editing
+    enterFileName: 'Please enter a file name',
+    renameSuccess: 'Document renamed successfully',
+    renameError: 'Failed to rename document',
+    deleteSuccess: 'Document deleted successfully',
+    deleteError: 'Failed to delete document',
+    confirmDelete: 'Delete Document?',
+    confirmDeleteMessage: 'This will permanently delete the document and all associated tasks. This action cannot be undone.',
   },
   
   // Document Process
@@ -187,6 +195,24 @@ const en = {
     noToolsAvailable: 'No extraction tools available for this file type',
     onlyToolAvailable: 'Only',
     supportsThisFormat: 'supports this file format',
+    // DPI settings
+    dpiSetting: 'OCR Quality (DPI)',
+    dpiHint: 'Higher DPI = better quality but slower processing',
+    // Commercial tools
+    commercialTools: 'Commercial OCR Tools',
+    openSourceTools: 'Open Source Tools',
+    requiresApiKey: 'Requires API key',
+    pricing: 'Pricing',
+    // Cost estimation
+    estimatedCost: 'Estimated Cost',
+    extractionCost: 'Extraction',
+    translationCost: 'Translation',
+    embeddingCost: 'Knowledge Base',
+    totalCost: 'Total',
+    walletBalance: 'Wallet Balance',
+    insufficientBalance: 'Insufficient balance. Please add credits to continue.',
+    costBreakdown: 'Cost Breakdown',
+    estimatingCost: 'Estimating cost...',
   },
   
   // Knowledge Base
@@ -341,6 +367,19 @@ const en = {
     createSuccess: 'Agent created successfully!',
     createError: 'Failed to create agent:',
     answerError: 'Failed to get answer:',
+    deleteSuccess: 'Agent deleted successfully!',
+    deleteError: 'Failed to delete agent',
+    deleteConfirmTitle: 'Delete Agent?',
+    deleteConfirmMessage: 'This will permanently delete the agent and all its conversations. This action cannot be undone.',
+    conversations: 'Conversations',
+    newChat: 'New Chat',
+    noSessions: 'No conversations yet',
+    untitledChat: 'Untitled Chat',
+    messages: 'messages',
+    sessionDeleted: 'Conversation deleted',
+    sessionDeleteError: 'Failed to delete conversation',
+    thinking: 'Thinking...',
+    sources: 'Sources',
   },
   
   // Language

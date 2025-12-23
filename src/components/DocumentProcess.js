@@ -27,11 +27,54 @@ const DocumentProcess = () => {
   const [targetLanguage, setTargetLanguage] = useState('en');
   const [ocrLanguage, setOcrLanguage] = useState('fas+eng');
   const [sourceLanguage, setSourceLanguage] = useState('fa');
+  const [dpiPresets, setDpiPresets] = useState({});
+  const [selectedDpi, setSelectedDpi] = useState('high'); // default to 200 DPI
+  
+  // Cost estimation
+  const [costEstimate, setCostEstimate] = useState(null);
+  const [estimatingCost, setEstimatingCost] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(null);
+  const [insufficientBalance, setInsufficientBalance] = useState(false);
 
   useEffect(() => {
     loadDocument();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId]);
+
+  // Estimate cost when task configuration changes
+  useEffect(() => {
+    if (taskType && documentId) {
+      estimateCost();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskType, selectedTool, usePageRange, pageRange.start, pageRange.end]);
+
+  const estimateCost = async () => {
+    if (!taskType) return;
+    
+    setEstimatingCost(true);
+    try {
+      const costData = {
+        task_type: taskType,
+        extraction_tool: selectedTool,
+        translation_backend: 'auto',
+      };
+      
+      if (usePageRange && pageRange.start && pageRange.end) {
+        costData.page_start = parseInt(pageRange.start);
+        costData.page_end = parseInt(pageRange.end);
+      }
+      
+      const response = await documentsAPI.estimateCost(documentId, costData);
+      setCostEstimate(response.data.estimated_cost);
+      setWalletBalance(response.data.wallet_balance);
+      setInsufficientBalance(!response.data.sufficient_balance);
+    } catch (error) {
+      console.error('Error estimating cost:', error);
+    } finally {
+      setEstimatingCost(false);
+    }
+  };
 
   const loadDocument = async () => {
     try {
@@ -53,6 +96,7 @@ const DocumentProcess = () => {
       setAvailableTools(infoResponse.data.available_tools || []);
       setRecommendedTool(infoResponse.data.recommended_tool || 'auto');
       setSelectedTool(infoResponse.data.recommended_tool || 'auto');
+      setDpiPresets(infoResponse.data.dpi_presets || {});
       
       // Set total pages if available
       if (infoResponse.data.total_pages) {
@@ -76,6 +120,12 @@ const DocumentProcess = () => {
       toast.warning(t.docProcess.whatToDo);
       return;
     }
+    
+    // Check balance before proceeding
+    if (insufficientBalance) {
+      toast.error(t.docProcess.insufficientBalance);
+      return;
+    }
 
     setProcessing(true);
     try {
@@ -84,6 +134,7 @@ const DocumentProcess = () => {
         extraction_tool: selectedTool,
         source_language: sourceLanguage,
         ocr_language: ocrLanguage,
+        dpi: dpiPresets[selectedDpi]?.value || 200,
       };
 
       if (usePageRange && pageRange.start && pageRange.end) {
@@ -99,7 +150,15 @@ const DocumentProcess = () => {
       toast.success(t.docProcess.taskCreated);
       navigate(`/document/${documentId}/task/${response.data.id}`);
     } catch (error) {
-      toast.error(t.docProcess.taskError + ' ' + (error.response?.data?.error || 'Unknown error'));
+      // Handle insufficient balance error specifically
+      if (error.response?.data?.error_code === 'INSUFFICIENT_BALANCE') {
+        setInsufficientBalance(true);
+        setWalletBalance(error.response.data.wallet_balance);
+        setCostEstimate(error.response.data.cost_breakdown);
+        toast.error(t.docProcess.insufficientBalance);
+      } else {
+        toast.error(t.docProcess.taskError + ' ' + (error.response?.data?.error || 'Unknown error'));
+      }
     } finally {
       setProcessing(false);
     }
@@ -331,19 +390,40 @@ const DocumentProcess = () => {
 
                 {/* OCR Language */}
                 {docInfo.needs_ocr && (
-                  <div className="form-group">
-                    <label>OCR Language</label>
-                    <select
-                      value={ocrLanguage}
-                      onChange={(e) => setOcrLanguage(e.target.value)}
-                      className="form-select"
-                    >
-                      <option value="fas">Persian (Farsi)</option>
-                      <option value="eng">English</option>
-                      <option value="fas+eng">Persian + English</option>
-                      <option value="ara">Arabic</option>
-                    </select>
-                  </div>
+                  <>
+                    <div className="form-group">
+                      <label>OCR Language</label>
+                      <select
+                        value={ocrLanguage}
+                        onChange={(e) => setOcrLanguage(e.target.value)}
+                        className="form-select"
+                      >
+                        <option value="fas">Persian (Farsi)</option>
+                        <option value="eng">English</option>
+                        <option value="fas+eng">Persian + English</option>
+                        <option value="ara">Arabic</option>
+                      </select>
+                    </div>
+                    
+                    {/* DPI Selection */}
+                    <div className="form-group">
+                      <label>{t.docProcess?.dpiSetting || 'OCR Quality (DPI)'}</label>
+                      <select
+                        value={selectedDpi}
+                        onChange={(e) => setSelectedDpi(e.target.value)}
+                        className="form-select"
+                      >
+                        {Object.entries(dpiPresets).map(([key, preset]) => (
+                          <option key={key} value={key}>
+                            {preset.name} - {preset.description}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="info-text">
+                        {t.docProcess?.dpiHint || 'Higher DPI = better quality but slower processing'}
+                      </p>
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -415,10 +495,59 @@ const DocumentProcess = () => {
                 </div>
               </div>
 
+              {/* Cost Estimation */}
+              {taskType && (
+                <div className="config-section cost-estimation-section">
+                  <h3>{t.docProcess.estimatedCost}</h3>
+                  {estimatingCost ? (
+                    <div className="estimating-cost">
+                      <span className="loading-spinner-small"></span>
+                      {t.docProcess.estimatingCost}
+                    </div>
+                  ) : costEstimate ? (
+                    <div className={`cost-breakdown ${insufficientBalance ? 'insufficient' : ''}`}>
+                      <div className="cost-items">
+                        <div className="cost-item">
+                          <span className="cost-label">{t.docProcess.extractionCost}:</span>
+                          <span className="cost-value">${costEstimate.extraction_cost.toFixed(4)}</span>
+                        </div>
+                        {costEstimate.translation_cost > 0 && (
+                          <div className="cost-item">
+                            <span className="cost-label">{t.docProcess.translationCost}:</span>
+                            <span className="cost-value">${costEstimate.translation_cost.toFixed(4)}</span>
+                          </div>
+                        )}
+                        {costEstimate.embedding_cost > 0 && (
+                          <div className="cost-item">
+                            <span className="cost-label">{t.docProcess.embeddingCost}:</span>
+                            <span className="cost-value">${costEstimate.embedding_cost.toFixed(4)}</span>
+                          </div>
+                        )}
+                        <div className="cost-item total">
+                          <span className="cost-label">{t.docProcess.totalCost}:</span>
+                          <span className="cost-value">${costEstimate.total.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="wallet-info">
+                        <span className="wallet-label">{t.docProcess.walletBalance}:</span>
+                        <span className={`wallet-value ${insufficientBalance ? 'insufficient' : ''}`}>
+                          ${walletBalance?.toFixed(2) || '0.00'}
+                        </span>
+                      </div>
+                      {insufficientBalance && (
+                        <div className="insufficient-warning">
+                          ⚠️ {t.docProcess.insufficientBalance}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
               <button
                 onClick={handleCreateTask}
-                disabled={processing}
-                className="process-button"
+                disabled={processing || insufficientBalance}
+                className={`process-button ${insufficientBalance ? 'disabled' : ''}`}
               >
                 {processing ? t.docProcess.creatingTask : t.docProcess.startProcessing}
               </button>

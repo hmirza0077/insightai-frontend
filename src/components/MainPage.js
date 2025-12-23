@@ -2,25 +2,41 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { documentsAPI } from '../api';
 import { useNavigate, Link } from 'react-router-dom';
 import Logo from './Logo';
+import WalletModal from './WalletModal';
 import './MainPage.css';
 
 const MainPage = () => {
   const { user, logout, refreshUser } = useAuth();
   const { t, toggleLanguage, language } = useLanguage();
   const toast = useToast();
+  const { theme, toggleTheme } = useTheme();
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [walletModalOpen, setWalletModalOpen] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(user?.wallet_balance || 0);
   const navigate = useNavigate();
+  
+  // Document editing state
+  const [editingDoc, setEditingDoc] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
   useEffect(() => {
     loadDocuments();
     refreshUser();
   }, []);
+
+  useEffect(() => {
+    if (user?.wallet_balance !== undefined) {
+      setWalletBalance(user.wallet_balance);
+    }
+  }, [user?.wallet_balance]);
 
   const loadDocuments = async () => {
     try {
@@ -70,8 +86,47 @@ const MainPage = () => {
     navigate('/login');
   };
 
+  // Document editing handlers
+  const handleStartEdit = (doc) => {
+    setEditingDoc(doc.id);
+    setEditName(doc.original_filename);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingDoc(null);
+    setEditName('');
+  };
+
+  const handleSaveEdit = async (docId) => {
+    if (!editName.trim()) {
+      toast.warning(t.main.enterFileName || 'Please enter a file name');
+      return;
+    }
+    
+    try {
+      await documentsAPI.update(docId, { original_filename: editName });
+      await loadDocuments();
+      setEditingDoc(null);
+      setEditName('');
+      toast.success(t.main.renameSuccess || 'Document renamed successfully');
+    } catch (error) {
+      toast.error(t.main.renameError || 'Failed to rename document');
+    }
+  };
+
+  const handleDeleteDocument = async (docId) => {
+    try {
+      await documentsAPI.delete(docId);
+      await loadDocuments();
+      setShowDeleteConfirm(null);
+      toast.success(t.main.deleteSuccess || 'Document deleted successfully');
+    } catch (error) {
+      toast.error(t.main.deleteError || 'Failed to delete document');
+    }
+  };
+
   return (
-    <div className="main-page">
+    <div className={`main-page theme-${theme}`}>
       <header className="main-header">
         <div className="header-content">
           <div className="header-brand">
@@ -80,14 +135,28 @@ const MainPage = () => {
           </div>
           
           <div className="header-actions">
+            {/* Theme Toggle - Sun/Moon - Leftmost position */}
+            <button onClick={toggleTheme} className="theme-toggle" aria-label="Toggle theme">
+              <div className={`theme-toggle-track ${theme}`}>
+                <div className="theme-toggle-thumb">
+                  <svg className="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                  </svg>
+                  <svg className="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                  </svg>
+                </div>
+              </div>
+            </button>
             <span className="welcome-text">
               {t.main.welcome} {user?.email || user?.mobile_number || user?.username}
             </span>
-            <div className="wallet-badge">
+            <div className="wallet-badge" onClick={() => setWalletModalOpen(true)} style={{ cursor: 'pointer' }}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
               </svg>
-              {t.main.wallet} ${user?.wallet_balance || 0}
+              {t.main.wallet} ${walletBalance}
             </div>
             <nav className="header-nav">
               <Link to="/knowledge-base" className="nav-link">
@@ -217,7 +286,35 @@ const MainPage = () => {
                       </svg>
                     </div>
                     <div className="doc-info">
-                      <h3>{doc.original_filename}</h3>
+                      {editingDoc === doc.id ? (
+                        <div className="edit-name-form">
+                          <input
+                            type="text"
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="edit-name-input"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveEdit(doc.id);
+                              if (e.key === 'Escape') handleCancelEdit();
+                            }}
+                          />
+                          <div className="edit-name-actions">
+                            <button onClick={() => handleSaveEdit(doc.id)} className="save-edit-btn" title={t.save}>
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                              </svg>
+                            </button>
+                            <button onClick={handleCancelEdit} className="cancel-edit-btn" title={t.cancel}>
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <h3>{doc.original_filename}</h3>
+                      )}
                       <div className="doc-meta">
                         <span>{t.main.type} {doc.file_type.toUpperCase()}</span>
                         <span>{t.main.uploaded} {new Date(doc.uploaded_at).toLocaleDateString()}</span>
@@ -232,6 +329,29 @@ const MainPage = () => {
                       )}
                     </div>
                     <div className="doc-actions">
+                      {/* Edit/Delete buttons */}
+                      {editingDoc !== doc.id && (
+                        <div className="doc-edit-actions">
+                          <button
+                            onClick={() => handleStartEdit(doc)}
+                            className="doc-edit-btn"
+                            title={t.edit || 'Edit'}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setShowDeleteConfirm(doc.id)}
+                            className="doc-delete-btn"
+                            title={t.delete || 'Delete'}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
                       {doc.has_tasks ? (
                         <button
                           onClick={() => handleViewDocument(doc.id)}
@@ -262,6 +382,35 @@ const MainPage = () => {
           </section>
         </div>
       </main>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="modal-overlay" onClick={() => setShowDeleteConfirm(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <h3>{t.main.confirmDelete || 'Delete Document?'}</h3>
+            <p>{t.main.confirmDeleteMessage || 'This will permanently delete the document and all associated tasks. This action cannot be undone.'}</p>
+            <div className="modal-actions">
+              <button onClick={() => setShowDeleteConfirm(null)} className="modal-cancel-btn">
+                {t.cancel || 'Cancel'}
+              </button>
+              <button onClick={() => handleDeleteDocument(showDeleteConfirm)} className="modal-delete-btn">
+                {t.delete || 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wallet Modal */}
+      <WalletModal 
+        isOpen={walletModalOpen}
+        onClose={() => setWalletModalOpen(false)}
+        walletBalance={walletBalance}
+        onBalanceUpdate={(newBalance) => {
+          setWalletBalance(newBalance);
+          refreshUser();
+        }}
+      />
     </div>
   );
 };

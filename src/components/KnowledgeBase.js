@@ -3,6 +3,7 @@ import { knowledgeBaseAPI } from '../api';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
+import { useTheme } from '../contexts/ThemeContext';
 import Logo from './Logo';
 import './KnowledgeBase.css';
 
@@ -18,6 +19,7 @@ const KnowledgeBase = () => {
   const navigate = useNavigate();
   const { t, toggleLanguage, language } = useLanguage();
   const toast = useToast();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     loadKnowledgeBases();
@@ -112,7 +114,7 @@ const KnowledgeBase = () => {
   };
 
   return (
-    <div className="knowledge-base-page">
+    <div className={`knowledge-base-page theme-${theme}`}>
       <header className="kb-header">
         <div className="header-content">
           <div className="header-left">
@@ -128,6 +130,20 @@ const KnowledgeBase = () => {
             </div>
           </div>
           <div className="header-right">
+            {/* Theme Toggle */}
+            <button onClick={toggleTheme} className="theme-toggle" aria-label="Toggle theme">
+              <div className={`theme-toggle-track ${theme}`}>
+                <div className="theme-toggle-thumb">
+                  <svg className="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                  </svg>
+                  <svg className="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                  </svg>
+                </div>
+              </div>
+            </button>
             <button onClick={toggleLanguage} className="lang-btn">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />

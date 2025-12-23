@@ -63,7 +63,7 @@ api.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refreshToken');
         if (refreshToken) {
-          const response = await axios.post(`${API_BASE_URL}/users/auth/refresh/`, {
+          const response = await axios.post(`${API_BASE_URL}/user/auth/refresh/`, {
             refresh: refreshToken
           });
           
@@ -119,6 +119,9 @@ export const authAPI = {
     if (response.data.token) {
       localStorage.setItem('accessToken', response.data.token);
     }
+    if (response.data.refresh) {
+      localStorage.setItem('refreshToken', response.data.refresh);
+    }
     return { 
       success: true, 
       token: response.data.token,
@@ -135,9 +138,11 @@ export const authAPI = {
     console.log('[API] Password login response:', response.data);
     if (response.data.token) {
       localStorage.setItem('accessToken', response.data.token);
-      console.log('[API] Token stored in localStorage');
-    } else {
-      console.error('[API] No token in response!');
+      console.log('[API] Access token stored in localStorage');
+    }
+    if (response.data.refresh) {
+      localStorage.setItem('refreshToken', response.data.refresh);
+      console.log('[API] Refresh token stored in localStorage');
     }
     return { 
       success: true, 
@@ -202,6 +207,15 @@ export const documentsAPI = {
   get: (id) => api.get(`/documents/${id}/`),
   
   getInfo: (id) => api.get(`/documents/${id}/info/`),
+  
+  // Update document (rename)
+  update: (id, data) => api.patch(`/documents/${id}/update/`, data),
+  
+  // Delete document
+  delete: (id) => api.delete(`/documents/${id}/delete/`),
+  
+  // Estimate cost before creating task
+  estimateCost: (id, data) => api.post(`/documents/${id}/estimate-cost/`, data),
   
   // Language detection
   detectLanguage: (id) => api.get(`/documents/${id}/detect-language/`),
@@ -335,6 +349,35 @@ export const agentsAPI = {
   
   // Session Management
   deleteSession: (sessionId) => api.delete(`/agents/sessions/${sessionId}/`),
+};
+
+// Wallet API
+export const walletAPI = {
+  // Get wallet info
+  get: () => api.get('/wallet/'),
+  
+  // Get transaction history
+  getTransactions: () => api.get('/wallet/transactions/'),
+  
+  // Get available credit plans (public)
+  getPlans: () => api.get('/wallet/plans/'),
+  
+  // Get purchase history
+  getPurchases: () => api.get('/wallet/purchases/'),
+  
+  // Create a purchase (initiate payment)
+  createPurchase: (planId, currency) => 
+    api.post('/wallet/purchases/create/', { plan_id: planId, currency }),
+  
+  // Complete a purchase (after payment)
+  completePurchase: (purchaseId, paymentReference, paymentGateway) =>
+    api.post(`/wallet/purchases/${purchaseId}/complete/`, {
+      payment_reference: paymentReference,
+      payment_gateway: paymentGateway
+    }),
+  
+  // Check balance
+  checkBalance: (amount) => api.post('/wallet/check-balance/', { amount }),
 };
 
 // Task Status API (for Celery tasks)

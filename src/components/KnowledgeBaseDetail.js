@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { knowledgeBaseAPI, documentsAPI } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
+import { useTheme } from '../contexts/ThemeContext';
 import Logo from './Logo';
 import './KnowledgeBaseDetail.css';
 
@@ -11,6 +12,7 @@ const KnowledgeBaseDetail = () => {
   const navigate = useNavigate();
   const { t, toggleLanguage, language } = useLanguage();
   const toast = useToast();
+  const { theme, toggleTheme } = useTheme();
   
   // State
   const [kb, setKb] = useState(null);
@@ -330,7 +332,7 @@ const KnowledgeBaseDetail = () => {
 
   if (loading) {
     return (
-      <div className="kb-detail-page">
+      <div className={`kb-detail-page theme-${theme}`}>
         <div className="loading-state">
           <div className="loading-spinner"></div>
           <span>{t.loading}</span>
@@ -341,7 +343,7 @@ const KnowledgeBaseDetail = () => {
 
   if (!kb) {
     return (
-      <div className="kb-detail-page">
+      <div className={`kb-detail-page theme-${theme}`}>
         <div className="error-state">{t.kbDetail.notFound}</div>
       </div>
     );
@@ -357,7 +359,7 @@ const KnowledgeBaseDetail = () => {
   const effectiveStatus = isKbReady ? 'ready' : (indexedDocs > 0 && totalChunks === 0 ? 'needs_indexing' : kb.status);
 
   return (
-    <div className="kb-detail-page">
+    <div className={`kb-detail-page theme-${theme}`}>
       <header className="kb-detail-header">
         <div className="header-content">
           <div className="header-left">

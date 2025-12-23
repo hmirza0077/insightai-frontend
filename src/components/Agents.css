@@ -1,16 +1,27 @@
 .agents-page {
   min-height: 100vh;
+  background: var(--bg-primary);
+  transition: background 0.3s ease;
+}
+
+.agents-page.theme-light {
   background: linear-gradient(180deg, var(--gray-50) 0%, var(--gray-100) 100%);
 }
 
 /* Header */
 .agents-header {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 50%, var(--primary-700) 100%);
+  background: var(--header-bg);
   color: white;
   box-shadow: var(--shadow-lg);
   position: sticky;
   top: 0;
   z-index: 100;
+  transition: background 0.3s ease;
+}
+
+.agents-page.theme-dark .agents-header {
+  background: linear-gradient(135deg, #252547 0%, #1e3a5f 50%, #16425b 100%);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .agents-header .header-content {
@@ -262,8 +273,8 @@ html[dir="ltr"] .form-select {
 /* Agents Layout */
 .agents-layout {
   display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 2rem;
+  grid-template-columns: 300px 240px 1fr;
+  gap: 1.5rem;
 }
 
 /* Agents List Section */
@@ -326,12 +337,11 @@ html[dir="ltr"] .form-select {
 
 .agent-card {
   display: flex;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1.25rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
   border: 2px solid var(--gray-200);
   border-radius: var(--radius-lg);
-  cursor: pointer;
   transition: var(--transition-normal);
 }
 
@@ -345,9 +355,38 @@ html[dir="ltr"] .form-select {
   background: var(--primary-50);
 }
 
+.agent-card-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  flex: 1;
+  cursor: pointer;
+}
+
+.agent-delete-btn {
+  padding: 0.5rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: var(--gray-400);
+  transition: var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.agent-delete-btn:hover {
+  background: var(--red-50);
+  color: var(--red-500);
+}
+
+.agent-delete-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 .agent-avatar {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -357,8 +396,8 @@ html[dir="ltr"] .form-select {
 }
 
 .agent-avatar svg {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   color: white;
 }
 
@@ -368,17 +407,21 @@ html[dir="ltr"] .form-select {
 }
 
 .agent-info h3 {
-  margin: 0 0 0.25rem 0;
+  margin: 0 0 0.15rem 0;
   color: var(--gray-800);
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
 .agent-info p {
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.35rem 0;
   color: var(--gray-500);
-  font-size: 0.85rem;
-  line-height: 1.4;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .agent-kb {
@@ -386,7 +429,7 @@ html[dir="ltr"] .form-select {
   align-items: center;
   gap: 4px;
   color: var(--gray-400);
-  font-size: 0.8rem;
+  font-size: 0.7rem;
 }
 
 .agent-kb svg {
@@ -598,6 +641,266 @@ html[dir="ltr"] .form-select {
   .chat-section {
     height: 550px;
   }
+  
+  .sessions-section {
+    max-height: 200px;
+  }
+}
+
+/* Sessions Section */
+.sessions-section {
+  background: white;
+  padding: 1rem;
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--gray-100);
+  height: fit-content;
+  max-height: 650px;
+  display: flex;
+  flex-direction: column;
+}
+
+.sessions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.sessions-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--gray-700);
+}
+
+.new-chat-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.4rem 0.75rem;
+  background: var(--primary-500);
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-normal);
+}
+
+.new-chat-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.new-chat-btn:hover {
+  background: var(--primary-600);
+}
+
+.sessions-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.no-sessions {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  color: var(--gray-400);
+}
+
+.no-sessions p {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition-normal);
+}
+
+.session-item:hover {
+  border-color: var(--primary-300);
+  background: var(--gray-50);
+}
+
+.session-item.active {
+  border-color: var(--primary-500);
+  background: var(--primary-50);
+}
+
+.session-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-title {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--gray-700);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-meta {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--gray-400);
+  margin-top: 2px;
+}
+
+.session-delete-btn {
+  padding: 0.25rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--gray-400);
+  transition: var(--transition-normal);
+  opacity: 0;
+}
+
+.session-item:hover .session-delete-btn {
+  opacity: 1;
+}
+
+.session-delete-btn:hover {
+  background: var(--red-50);
+  color: var(--red-500);
+}
+
+.session-delete-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Chat Loading */
+.chat-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  color: var(--gray-500);
+}
+
+.loading-spinner.small {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-content {
+  background: white;
+  padding: 2rem;
+  border-radius: var(--radius-xl);
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.modal-icon.danger {
+  background: var(--red-100);
+  color: var(--red-500);
+}
+
+.modal-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.modal-content h3 {
+  margin: 0 0 0.5rem;
+  color: var(--gray-800);
+  font-size: 1.25rem;
+}
+
+.modal-content p {
+  margin: 0 0 1.5rem;
+  color: var(--gray-500);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.modal-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-full);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-normal);
+  border: none;
+}
+
+.modal-btn.cancel {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+
+.modal-btn.cancel:hover {
+  background: var(--gray-200);
+}
+
+.modal-btn.danger {
+  background: var(--red-500);
+  color: white;
+}
+
+.modal-btn.danger:hover {
+  background: var(--red-600);
 }
 
 /* KB Sources Display */

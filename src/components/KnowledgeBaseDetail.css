@@ -1,16 +1,27 @@
 .kb-detail-page {
   min-height: 100vh;
+  background: var(--bg-primary);
+  transition: background 0.3s ease;
+}
+
+.kb-detail-page.theme-light {
   background: linear-gradient(180deg, var(--gray-50) 0%, var(--gray-100) 100%);
 }
 
 /* Header */
 .kb-detail-header {
-  background: linear-gradient(135deg, var(--primary-500) 0%, var(--primary-600) 50%, var(--primary-700) 100%);
+  background: var(--header-bg);
   color: white;
   box-shadow: var(--shadow-lg);
   position: sticky;
   top: 0;
   z-index: 100;
+  transition: background 0.3s ease;
+}
+
+.kb-detail-page.theme-dark .kb-detail-header {
+  background: linear-gradient(135deg, #252547 0%, #1e3a5f 50%, #16425b 100%);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .kb-detail-header .header-content {
