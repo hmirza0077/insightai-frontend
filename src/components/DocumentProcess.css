@@ -1,6 +1,42 @@
+/* Theme Variables */
+.document-process.theme-light {
+  --bg-primary: #f5f5f5;
+  --bg-card: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #f9f9f9;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-muted: #888888;
+  --border-color: #e0e0e0;
+  --border-light: #eeeeee;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --input-bg: #ffffff;
+  --input-border: #dddddd;
+  --hover-bg: #f8f9ff;
+  --selected-bg: #f0f4ff;
+}
+
+.document-process.theme-dark {
+  --bg-primary: #1a1a2e;
+  --bg-card: rgba(255, 255, 255, 0.06);
+  --bg-secondary: #1f1f35;
+  --bg-tertiary: #25253d;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-muted: rgba(255, 255, 255, 0.55);
+  --border-color: rgba(255, 255, 255, 0.12);
+  --border-light: rgba(255, 255, 255, 0.08);
+  --shadow-color: rgba(0, 0, 0, 0.25);
+  --input-bg: #25253d;
+  --input-border: rgba(255, 255, 255, 0.2);
+  --hover-bg: rgba(102, 126, 234, 0.15);
+  --selected-bg: rgba(102, 126, 234, 0.2);
+}
+
 .document-process {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: var(--bg-primary);
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 .document-process .header {
@@ -10,6 +46,10 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+.document-process.theme-dark .header {
+  background: linear-gradient(135deg, #252547 0%, #1e3a5f 50%, #16425b 100%);
 }
 
 .back-button {
@@ -46,15 +86,16 @@
 }
 
 .process-section {
-  background: white;
+  background: var(--bg-card);
   padding: 2rem;
   border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px var(--shadow-color);
+  border: 1px solid var(--border-color);
 }
 
 .process-section h2 {
   margin-top: 0;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 2rem;
 }
 
@@ -71,23 +112,24 @@
   align-items: center;
   gap: 1.5rem;
   padding: 1.5rem;
-  border: 2px solid #e0e0e0;
+  border: 2px solid var(--border-color);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.3s;
   position: relative;
+  background: var(--bg-card);
 }
 
 .task-option:hover {
   border-color: #667eea;
-  background: #f8f9ff;
+  background: var(--hover-bg);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
 }
 
 .task-option.selected {
   border-color: #667eea;
-  background: #f0f4ff;
+  background: var(--selected-bg);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
 }
 
@@ -102,13 +144,13 @@
 
 .task-content h3 {
   margin: 0 0 0.5rem 0;
-  color: #333;
+  color: var(--text-primary);
   font-size: 1.2rem;
 }
 
 .task-content p {
   margin: 0;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 0.95rem;
 }
 
@@ -132,12 +174,12 @@
 .config-section {
   margin-top: 2rem;
   padding-top: 2rem;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid var(--border-color);
 }
 
 .config-section h3 {
   margin-top: 0;
-  color: #333;
+  color: var(--text-primary);
   margin-bottom: 1rem;
 }
 
@@ -148,7 +190,7 @@
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
-  color: #333;
+  color: var(--text-primary);
   font-weight: 500;
 }
 
@@ -156,10 +198,44 @@
 .form-input {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--input-border);
   border-radius: 5px;
   font-size: 1rem;
   box-sizing: border-box;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.form-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: left 0.75rem center;
+  padding-left: 2.5rem;
+}
+
+.document-process.theme-dark .form-select,
+.document-process.theme-dark .form-input,
+.document-process.theme-dark select,
+.document-process.theme-dark input[type="number"],
+.document-process.theme-dark input[type="text"],
+.document-process.theme-dark .select,
+.document-process.theme-dark .input {
+  background-color: #25253d !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+}
+
+.document-process.theme-dark .form-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+}
+
+.document-process.theme-dark .form-select option,
+.document-process.theme-dark select option {
+  background-color: #25253d !important;
+  color: #ffffff !important;
 }
 
 .form-select:focus,
@@ -174,6 +250,7 @@
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
+  color: var(--text-primary);
 }
 
 .checkbox-label input[type="checkbox"] {
@@ -196,32 +273,58 @@
 
 .range-separator {
   padding-bottom: 0.75rem;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
 .info-text {
-  color: #666;
+  color: var(--text-secondary);
   font-size: 0.9rem;
   margin-top: 0.5rem;
+  background: transparent;
+}
+
+.info-text.warning {
+  color: #e67e22;
+}
+
+.document-process.theme-dark .info-text {
+  color: rgba(255, 255, 255, 0.7);
+  background: transparent;
+}
+
+.document-process.theme-dark .info-text.warning {
+  color: #f39c12;
 }
 
 .tool-info-box {
   margin-top: 1rem;
   padding: 1rem;
-  background: #f9f9f9;
+  background: var(--bg-tertiary);
   border-radius: 5px;
   border-left: 4px solid #667eea;
 }
 
 .tool-info-box h4 {
   margin-top: 0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .tool-info-box p {
-  color: #666;
+  color: var(--text-secondary);
   margin: 0.5rem 0;
+}
+
+.document-process.theme-dark .tool-info-box {
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.document-process.theme-dark .tool-info-box h4 {
+  color: #ffffff;
+}
+
+.document-process.theme-dark .tool-info-box p {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .tool-badges {
@@ -258,6 +361,26 @@
   color: #721c24;
 }
 
+.document-process.theme-dark .badge-success {
+  background: rgba(40, 167, 69, 0.2);
+  color: #6dd58c;
+}
+
+.document-process.theme-dark .badge-warning {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.document-process.theme-dark .badge-info {
+  background: rgba(23, 162, 184, 0.2);
+  color: #63d9e8;
+}
+
+.document-process.theme-dark .badge-commercial {
+  background: rgba(220, 53, 69, 0.2);
+  color: #f5a5ad;
+}
+
 .process-button {
   width: 100%;
   padding: 1rem 2rem;
@@ -287,7 +410,7 @@
 .error {
   text-align: center;
   padding: 2rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .error {
@@ -296,11 +419,12 @@
 
 /* Existing Tasks Section */
 .existing-tasks-section {
-  background: white;
+  background: var(--bg-card);
   padding: 2rem;
   border-radius: 10px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px var(--shadow-color);
   margin-bottom: 2rem;
+  border: 1px solid var(--border-color);
 }
 
 .section-header-row {
@@ -312,7 +436,7 @@
 
 .section-header-row h2 {
   margin: 0;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .toggle-form-btn {
@@ -339,17 +463,17 @@
 }
 
 .task-card {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 1.25rem;
   cursor: pointer;
   transition: all 0.3s;
-  background: white;
+  background: var(--bg-card);
 }
 
 .task-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px var(--shadow-color);
   border-color: #667eea;
 }
 
@@ -378,7 +502,7 @@
 
 .task-type {
   font-weight: 600;
-  color: #333;
+  color: var(--text-primary);
   font-size: 1rem;
 }
 
@@ -410,17 +534,37 @@
   color: #1967d2;
 }
 
+.document-process.theme-dark .task-status.status-completed {
+  background: rgba(40, 167, 69, 0.2);
+  color: #6dd58c;
+}
+
+.document-process.theme-dark .task-status.status-failed {
+  background: rgba(220, 53, 69, 0.2);
+  color: #f5a5ad;
+}
+
+.document-process.theme-dark .task-status.status-pending {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+}
+
+.document-process.theme-dark .task-status.status-processing {
+  background: rgba(102, 126, 234, 0.2);
+  color: #a5b4fc;
+}
+
 .task-card-details {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 0.75rem;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .task-detail strong {
-  color: #444;
+  color: var(--text-primary);
 }
 
 .task-card-footer {
@@ -428,9 +572,9 @@
   justify-content: space-between;
   align-items: center;
   padding-top: 0.75rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid var(--border-light);
   font-size: 0.85rem;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .task-cost {
@@ -438,11 +582,10 @@
   color: #667eea;
 }
 
-
 /* Cost Estimation Section */
 .cost-estimation-section {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 1.5rem;
   margin-top: 1.5rem;
@@ -451,7 +594,7 @@
 .cost-estimation-section h3 {
   margin-top: 0;
   margin-bottom: 1rem;
-  color: #495057;
+  color: var(--text-primary);
   font-size: 1.1rem;
 }
 
@@ -459,14 +602,14 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  color: #6c757d;
+  color: var(--text-muted);
   font-style: italic;
 }
 
 .loading-spinner-small {
   width: 16px;
   height: 16px;
-  border: 2px solid #e9ecef;
+  border: 2px solid var(--border-color);
   border-top-color: #667eea;
   border-radius: 50%;
   animation: spin 1s linear infinite;
@@ -486,7 +629,7 @@
   border: 2px solid #dc3545;
   border-radius: 8px;
   padding: 1rem;
-  background: #fff5f5;
+  background: rgba(220, 53, 69, 0.1);
 }
 
 .cost-items {
@@ -503,14 +646,14 @@
 }
 
 .cost-item.total {
-  border-top: 1px solid #dee2e6;
+  border-top: 1px solid var(--border-color);
   padding-top: 0.75rem;
   margin-top: 0.5rem;
   font-weight: 600;
 }
 
 .cost-label {
-  color: #495057;
+  color: var(--text-secondary);
 }
 
 .cost-value {
@@ -528,12 +671,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: #e9ecef;
+  background: var(--bg-tertiary);
   border-radius: 6px;
 }
 
 .wallet-label {
-  color: #495057;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 

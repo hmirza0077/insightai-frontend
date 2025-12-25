@@ -561,6 +561,31 @@
   font-size: 0.85rem;
 }
 
+.doc-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.doc-tool-used {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(102, 126, 234, 0.15);
+  color: var(--primary-color);
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.main-page.theme-dark .doc-tool-used {
+  background: rgba(102, 126, 234, 0.25);
+  color: #a5b4fc;
+}
+
 .processed-badge {
   display: inline-flex;
   align-items: center;

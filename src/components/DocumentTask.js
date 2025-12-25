@@ -3,14 +3,52 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { documentsAPI } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
+import { useTheme } from '../contexts/ThemeContext';
 import Logo from './Logo';
 import './DocumentTask.css';
+
+// Helper function to convert technical errors to human-readable messages
+const getHumanReadableError = (error, t) => {
+  if (!error) return null;
+  
+  const errorLower = error.toLowerCase();
+  
+  // Common error patterns
+  if (errorLower.includes('insufficient credits') || errorLower.includes('insufficient balance')) {
+    return t.docTask.errors?.insufficientCredits || 'You don\'t have enough credits. Please add credits to your wallet.';
+  }
+  if (errorLower.includes('no text extracted') || errorLower.includes('empty document')) {
+    return t.docTask.errors?.noTextExtracted || 'Could not extract text from this document. The file may be empty or corrupted.';
+  }
+  if (errorLower.includes('stuck in queue')) {
+    return t.docTask.errors?.stuckInQueue || 'The task was interrupted. Please try again.';
+  }
+  if (errorLower.includes('timeout') || errorLower.includes('timed out')) {
+    return t.docTask.errors?.timeout || 'The operation took too long. Please try again with a smaller document.';
+  }
+  if (errorLower.includes('translation failed')) {
+    return t.docTask.errors?.translationFailed || 'Translation service is temporarily unavailable. Please try again later.';
+  }
+  if (errorLower.includes('connection') || errorLower.includes('network')) {
+    return t.docTask.errors?.networkError || 'Network error. Please check your connection and try again.';
+  }
+  if (errorLower.includes('file not found') || errorLower.includes('does not exist')) {
+    return t.docTask.errors?.fileNotFound || 'The document file could not be found. Please re-upload the document.';
+  }
+  if (errorLower.includes('unsupported') || errorLower.includes('invalid format')) {
+    return t.docTask.errors?.unsupportedFormat || 'This file format is not supported.';
+  }
+  
+  // Generic fallback - show a friendly message
+  return t.docTask.errors?.generic || 'An error occurred while processing. Please try again.';
+};
 
 const DocumentTask = () => {
   const { documentId, taskId } = useParams();
   const navigate = useNavigate();
   const { t, toggleLanguage, language } = useLanguage();
   const toast = useToast();
+  const { theme } = useTheme();
   const pollInterval = useRef(null);
   
   // State
@@ -143,8 +181,8 @@ const DocumentTask = () => {
           }
         }
         
-        // Start polling if task is in progress
-        if (['pending', 'extracting', 'translating', 'embedding'].includes(taskResponse.data.status)) {
+        // Start polling if task is in progress or queued
+        if (['pending', 'queued', 'extracting', 'translating', 'embedding'].includes(taskResponse.data.status)) {
           startPolling();
         }
       } catch (error) {
@@ -223,13 +261,17 @@ const DocumentTask = () => {
   const handleProcess = async () => {
     setProcessing(true);
     try {
-      const response = await documentsAPI.processTask(taskId);
-      setTask(response.data.task);
+      // Use async processing via Celery
+      const response = await documentsAPI.processTaskAsync(taskId);
       
-      // If not completed yet, start polling
-      if (response.data.task.status !== 'completed') {
-        startPolling();
+      if (response.data.task) {
+        setTask(response.data.task);
       }
+      
+      // Start polling for status updates
+      startPolling();
+      
+      toast.success(t.docTask.processingStarted || 'Processing started in background');
     } catch (error) {
       toast.error(error.response?.data?.error || t.docTask.processError);
     } finally {
@@ -393,6 +435,12 @@ const DocumentTask = () => {
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         );
+      case 'queued':
+        return (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+          </svg>
+        );
       default:
         return (
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -404,7 +452,7 @@ const DocumentTask = () => {
 
   if (loading) {
     return (
-      <div className="doc-task-page">
+      <div className={`doc-task-page theme-${theme}`}>
         <div className="loading-state">
           <div className="loading-spinner"></div>
           <span>{t.loading}</span>
@@ -415,13 +463,13 @@ const DocumentTask = () => {
 
   if (!document || !task) {
     return (
-      <div className="doc-task-page">
+      <div className={`doc-task-page theme-${theme}`}>
         <div className="error-state">{t.docTask.notFound}</div>
       </div>
     );
   }
 
-  const isProcessing = ['extracting', 'translating', 'embedding'].includes(task.status);
+  const isProcessing = ['queued', 'extracting', 'translating', 'embedding'].includes(task.status);
   const hasKB = task.task_type !== 'translate_only';
   const hasTranslation = task.task_type !== 'kb_only';
   const currentPages = viewMode === 'extracted' ? extractedPages : translatedPages;
@@ -429,7 +477,7 @@ const DocumentTask = () => {
   const currentPageData = currentPages.find(p => p.pageNumber === currentPage);
 
   return (
-    <div className="doc-task-page">
+    <div className={`doc-task-page theme-${theme}`}>
       <header className="doc-task-header">
         <div className="header-content">
           <div className="header-left">
@@ -468,7 +516,7 @@ const DocumentTask = () => {
             <div className="status-info">
               <h2>{t.docTask.status[task.status]}</h2>
               {task.error_message && (
-                <p className="error-message">{task.error_message}</p>
+                <p className="error-message">{getHumanReadableError(task.error_message, t)}</p>
               )}
               {isProcessing && (
                 <div className="processing-indicator">
@@ -496,6 +544,27 @@ const DocumentTask = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
                     </svg>
                     {t.docTask.startProcessing}
+                  </>
+                )}
+              </button>
+            )}
+            {task.status === 'failed' && (
+              <button 
+                onClick={handleProcess} 
+                disabled={processing}
+                className="retry-btn"
+              >
+                {processing ? (
+                  <>
+                    <span className="btn-spinner"></span>
+                    {t.docTask.retrying || 'Retrying...'}
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    {t.docTask.retry || 'Retry'}
                   </>
                 )}
               </button>

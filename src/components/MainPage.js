@@ -319,13 +319,22 @@ const MainPage = () => {
                         <span>{t.main.type} {doc.file_type.toUpperCase()}</span>
                         <span>{t.main.uploaded} {new Date(doc.uploaded_at).toLocaleDateString()}</span>
                       </div>
-                      {doc.has_tasks && (
-                        <span className="processed-badge">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                          </svg>
-                          {t.main.hasTasks}
-                        </span>
+                      {(doc.has_tasks || doc.last_tool_used) && (
+                        <div className="doc-badges">
+                          {doc.has_tasks && (
+                            <span className="processed-badge">
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                              </svg>
+                              {t.main.hasTasks}
+                            </span>
+                          )}
+                          {doc.last_tool_used && (
+                            <span className="doc-tool-used">
+                              {t.main.tool} {doc.last_tool_used}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                     <div className="doc-actions">

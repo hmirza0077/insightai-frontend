@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { documentsAPI } from '../api';
 import './DocumentProcess.css';
 
@@ -10,6 +11,7 @@ const DocumentProcess = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const toast = useToast();
+  const { theme } = useTheme();
   const [document, setDocument] = useState(null);
   const [docInfo, setDocInfo] = useState(null);
   const [existingTasks, setExistingTasks] = useState([]);
@@ -191,7 +193,7 @@ const DocumentProcess = () => {
   };
 
   return (
-    <div className="document-process">
+    <div className={`document-process theme-${theme}`}>
       <div className="header">
         <button onClick={() => navigate('/main')} className="back-button">
           {t.back}
