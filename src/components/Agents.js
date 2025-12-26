@@ -17,7 +17,7 @@ const Agents = () => {
   const [newAgent, setNewAgent] = useState({ 
     name: '', 
     description: '', 
-    knowledge_base: '',
+    knowledge_bases: [],
     provider: 'openai',
     model: 'gpt-4o-mini'
   });
@@ -43,7 +43,7 @@ const Agents = () => {
     loadProviders();
     const kbId = searchParams.get('kb_id');
     if (kbId) {
-      setNewAgent(prev => ({ ...prev, knowledge_base: kbId }));
+      setNewAgent(prev => ({ ...prev, knowledge_bases: [kbId] }));
       setShowCreateForm(true);
     }
   }, [searchParams]);
@@ -122,17 +122,28 @@ const Agents = () => {
         provider: newAgent.provider,
         model: newAgent.model,
       };
-      if (newAgent.knowledge_base) {
-        agentData.knowledge_base_ids = [parseInt(newAgent.knowledge_base)];
+      if (newAgent.knowledge_bases && newAgent.knowledge_bases.length > 0) {
+        agentData.knowledge_base_ids = newAgent.knowledge_bases.map(id => parseInt(id));
       }
       await agentsAPI.create(agentData);
       setShowCreateForm(false);
-      setNewAgent({ name: '', description: '', knowledge_base: '', provider: 'openai', model: 'gpt-4o-mini' });
+      setNewAgent({ name: '', description: '', knowledge_bases: [], provider: 'openai', model: 'gpt-4o-mini' });
       loadAgents();
       toast.success(t.agents.createSuccess);
     } catch (error) {
       toast.error(t.agents.createError + ' ' + (error.response?.data?.error || 'Unknown error'));
     }
+  };
+
+  const handleToggleKB = (kbId) => {
+    setNewAgent(prev => {
+      const kbs = prev.knowledge_bases || [];
+      if (kbs.includes(kbId)) {
+        return { ...prev, knowledge_bases: kbs.filter(id => id !== kbId) };
+      } else {
+        return { ...prev, knowledge_bases: [...kbs, kbId] };
+      }
+    });
   };
 
   const handleDeleteAgent = async (agentId) => {
@@ -259,22 +270,11 @@ const Agents = () => {
               </svg>
               {t.language[language === 'fa' ? 'en' : 'fa']}
             </button>
-            <button onClick={() => setShowCreateForm(!showCreateForm)} className="create-btn">
-              {showCreateForm ? (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                  {t.cancel}
-                </>
-              ) : (
-                <>
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                  </svg>
-                  {t.agents.createAgent}
-                </>
-              )}
+            <button onClick={() => setShowCreateForm(true)} className="create-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              {t.agents.createAgent}
             </button>
           </div>
         </div>
@@ -282,93 +282,6 @@ const Agents = () => {
 
       <main className="agents-content">
         <div className="content-wrapper">
-          {showCreateForm && (
-            <section className="create-form-section fade-in">
-              <div className="section-header">
-                <div className="section-icon">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
-                  </svg>
-                </div>
-                <h2>{t.agents.createNewAgent}</h2>
-              </div>
-              <form onSubmit={handleCreateAgent} className="agent-form">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>{t.agents.name}</label>
-                    <input type="text" value={newAgent.name} onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })} required className="form-input" />
-                  </div>
-                  <div className="form-group">
-                    <label>{t.agents.knowledgeBase}</label>
-                    <select value={newAgent.knowledge_base} onChange={(e) => setNewAgent({ ...newAgent, knowledge_base: e.target.value })} required className="form-select">
-                      <option value="">{t.agents.selectKB}</option>
-                      {knowledgeBases.map((kb) => (
-                        <option key={kb.id} value={kb.id}>{kb.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>{t.agents.provider || 'LLM Provider'}</label>
-                    <select 
-                      value={newAgent.provider} 
-                      onChange={(e) => handleProviderChange(e.target.value)} 
-                      className="form-select"
-                    >
-                      {providers.map((provider) => (
-                        <option key={provider.id} value={provider.id} disabled={!provider.available}>
-                          {provider.name} {!provider.available && '(Not Configured)'}
-                        </option>
-                      ))}
-                    </select>
-                    {providers.length > 0 && (
-                      <div className="provider-status">
-                        {providers.find(p => p.id === newAgent.provider)?.available ? (
-                          <span className="status-available">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="14" height="14">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                            </svg>
-                            {t.agents.providerAvailable || 'Available'}
-                          </span>
-                        ) : (
-                          <span className="status-unavailable">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="14" height="14">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                            {t.agents.providerUnavailable || 'API Key Required'}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="form-group">
-                    <label>{t.agents.model || 'Model'}</label>
-                    <select 
-                      value={newAgent.model} 
-                      onChange={(e) => setNewAgent({ ...newAgent, model: e.target.value })} 
-                      className="form-select"
-                    >
-                      {getModelsForProvider(newAgent.provider).map(([modelId, modelName]) => (
-                        <option key={modelId} value={modelId}>{modelName}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>{t.agents.description}</label>
-                  <textarea value={newAgent.description} onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })} rows="3" className="form-textarea" />
-                </div>
-                <button type="submit" className="submit-btn">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                  </svg>
-                  {t.create} {t.agents.title.slice(0, -2)}
-                </button>
-              </form>
-            </section>
-          )}
-
           <div className="agents-layout">
             <section className="agents-list-section">
               <div className="section-header compact">
@@ -398,20 +311,24 @@ const Agents = () => {
                         </div>
                         <div className="agent-info">
                           <h3>{agent.name}</h3>
-                          {agent.description && <p>{agent.description}</p>}
-                          <div className="agent-meta">
-                            <span className="agent-kb">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-                              </svg>
-                              {t.agents.kb} {agent.knowledge_bases_count || (agent.knowledge_bases?.length) || 0}
-                            </span>
-                            <span className="agent-provider">
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-15 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h10.5a2.25 2.25 0 002.25-2.25V6.75a2.25 2.25 0 00-2.25-2.25H6.75A2.25 2.25 0 004.5 6.75v10.5a2.25 2.25 0 002.25 2.25zm.75-12h9v9h-9v-9z" />
-                              </svg>
-                              {agent.provider || 'openai'}
-                            </span>
+                          {agent.description && <p className="agent-description">{agent.description}</p>}
+                          <div className="agent-details">
+                            <div className="agent-detail-row">
+                              <span className="agent-detail-item">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                                </svg>
+                                {agent.knowledge_bases_count || (agent.knowledge_bases?.length) || 0} {t.kbDetail?.documents || 'KB'}
+                              </span>
+                            </div>
+                            <div className="agent-detail-row">
+                              <span className="agent-detail-item model">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+                                </svg>
+                                {agent.model || 'gpt-4o-mini'}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -697,6 +614,126 @@ const Agents = () => {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Agent Modal */}
+      {showCreateForm && (
+        <div className="modal-overlay" onClick={() => setShowCreateForm(false)}>
+          <div className="modal-content create-agent-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-with-icon">
+                <div className="section-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                  </svg>
+                </div>
+                <h3>{t.agents.createNewAgent}</h3>
+              </div>
+              <button className="modal-close" onClick={() => setShowCreateForm(false)}>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <form onSubmit={handleCreateAgent} className="agent-form">
+              <div className="form-group">
+                <label>{t.agents.name}</label>
+                <input type="text" value={newAgent.name} onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })} required className="form-input" placeholder={t.agents.namePlaceholder || 'Enter agent name...'} />
+              </div>
+              
+              <div className="form-group">
+                <label>{t.agents.knowledgeBases || 'Knowledge Bases'}</label>
+                <div className="kb-selection-list">
+                  {knowledgeBases.length === 0 ? (
+                    <p className="no-kb-message">{t.agents.noKBAvailable || 'No knowledge bases available. Create one first.'}</p>
+                  ) : (
+                    knowledgeBases.map((kb) => (
+                      <label key={kb.id} className={`kb-checkbox-item ${newAgent.knowledge_bases?.includes(kb.id.toString()) ? 'selected' : ''}`}>
+                        <input 
+                          type="checkbox" 
+                          checked={newAgent.knowledge_bases?.includes(kb.id.toString())} 
+                          onChange={() => handleToggleKB(kb.id.toString())}
+                        />
+                        <div className="kb-checkbox-info">
+                          <span className="kb-checkbox-name">{kb.name}</span>
+                          <span className="kb-checkbox-meta">{kb.total_documents || kb.documents_count || 0} {t.kbDetail?.documents || 'docs'}</span>
+                        </div>
+                        <div className={`kb-checkbox-status status-${kb.status}`}>{kb.status}</div>
+                      </label>
+                    ))
+                  )}
+                </div>
+                {newAgent.knowledge_bases?.length > 0 && (
+                  <p className="kb-selected-count">{newAgent.knowledge_bases.length} {t.agents.kbSelected || 'selected'}</p>
+                )}
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>{t.agents.provider || 'LLM Provider'}</label>
+                  <select 
+                    value={newAgent.provider} 
+                    onChange={(e) => handleProviderChange(e.target.value)} 
+                    className="form-select"
+                  >
+                    {providers.map((provider) => (
+                      <option key={provider.id} value={provider.id} disabled={!provider.available}>
+                        {provider.name} {!provider.available && '(Not Configured)'}
+                      </option>
+                    ))}
+                  </select>
+                  {providers.length > 0 && (
+                    <div className="provider-status">
+                      {providers.find(p => p.id === newAgent.provider)?.available ? (
+                        <span className="status-available">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="14" height="14">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                          </svg>
+                          {t.agents.providerAvailable || 'Available'}
+                        </span>
+                      ) : (
+                        <span className="status-unavailable">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" width="14" height="14">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                          {t.agents.providerUnavailable || 'API Key Required'}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>{t.agents.model || 'Model'}</label>
+                  <select 
+                    value={newAgent.model} 
+                    onChange={(e) => setNewAgent({ ...newAgent, model: e.target.value })} 
+                    className="form-select"
+                  >
+                    {getModelsForProvider(newAgent.provider).map(([modelId, modelName]) => (
+                      <option key={modelId} value={modelId}>{modelName}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>{t.agents.description}</label>
+                <textarea value={newAgent.description} onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })} rows="3" className="form-textarea" />
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="modal-btn cancel" onClick={() => setShowCreateForm(false)}>
+                  {t.cancel}
+                </button>
+                <button type="submit" className="modal-btn primary">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                  </svg>
+                  {t.create}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

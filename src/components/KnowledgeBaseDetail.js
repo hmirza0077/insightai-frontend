@@ -166,6 +166,16 @@ const KnowledgeBaseDetail = () => {
     }
   };
 
+  const handleReindexDocument = async (docId) => {
+    try {
+      await knowledgeBaseAPI.reindexDocument(id, docId);
+      toast.success(t.kbDetail.reindexSuccess || 'Re-indexing started');
+      loadKnowledgeBase();
+    } catch (error) {
+      toast.error(error.response?.data?.error || t.kbDetail.reindexError);
+    }
+  };
+
   const handleIndex = async () => {
     setIndexing(true);
     try {
@@ -174,27 +184,33 @@ const KnowledgeBaseDetail = () => {
       
       if (response.data.success) {
         toast.success(
-          `Indexing started for ${response.data.documents_to_index} document(s). This may take a few minutes for scanned PDFs.`
+          t.kbDetail.indexingStarted || `Indexing started for ${response.data.documents_to_index} document(s). This may take a few minutes for scanned PDFs.`
         );
         
-        // Poll for completion
+        // Poll for completion - don't set indexing to false here, polling will handle it
         const taskId = response.data.celery_task_id;
         if (taskId) {
           pollIndexingStatus(taskId);
+          return; // Don't set indexing to false, polling will handle it
         } else {
           // No celery task, just reload after a delay
-          setTimeout(() => loadKnowledgeBase(), 3000);
+          setTimeout(() => {
+            loadKnowledgeBase();
+            setIndexing(false);
+          }, 3000);
+          return;
         }
       } else if (response.data.message) {
         toast.info(response.data.message);
         loadKnowledgeBase();
+        setIndexing(false);
       }
     } catch (error) {
       console.error('Indexing error:', error);
       
       // If async fails (e.g., Celery not running), fall back to sync
       if (error.response?.status === 500 && error.response?.data?.error?.includes('Celery')) {
-        toast.warning('Background processing unavailable. Trying synchronous indexing...');
+        toast.warning(t.kbDetail.backgroundUnavailable || 'Background processing unavailable. Trying synchronous indexing...');
         try {
           const syncResponse = await knowledgeBaseAPI.index(id);
           if (syncResponse.data.success) {
@@ -227,7 +243,6 @@ const KnowledgeBaseDetail = () => {
       } catch (e) {
         console.error('Failed to refresh status:', e);
       }
-    } finally {
       setIndexing(false);
     }
   };
@@ -238,6 +253,9 @@ const KnowledgeBaseDetail = () => {
     
     const poll = async () => {
       try {
+        // Also reload KB to update stats
+        await loadKnowledgeBase();
+        
         const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000/api'}/tasks/${taskId}/`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -246,27 +264,31 @@ const KnowledgeBaseDetail = () => {
         const task = await response.json();
         
         if (task.status === 'completed') {
-          toast.success('Indexing completed successfully!');
+          setIndexing(false);
+          toast.success(t.kbDetail.indexingComplete || 'Indexing completed successfully!');
           loadKnowledgeBase();
           return;
         } else if (task.status === 'failed') {
-          toast.error(`Indexing failed: ${task.error || 'Unknown error'}`);
+          setIndexing(false);
+          toast.error(`${t.kbDetail.indexingFailed || 'Indexing failed'}: ${task.error || 'Unknown error'}`);
           loadKnowledgeBase();
           return;
         } else if (attempts < maxAttempts) {
           attempts++;
-          setTimeout(poll, 5000); // Poll every 5 seconds
+          setTimeout(poll, 3000); // Poll every 3 seconds
         } else {
-          toast.warning('Indexing is taking longer than expected. Please refresh the page to check status.');
+          setIndexing(false);
+          toast.warning(t.kbDetail.indexingTimeout || 'Indexing is taking longer than expected. Please refresh the page to check status.');
           loadKnowledgeBase();
         }
       } catch (error) {
         console.error('Error polling task status:', error);
+        setIndexing(false);
         loadKnowledgeBase();
       }
     };
     
-    setTimeout(poll, 3000); // Start polling after 3 seconds
+    setTimeout(poll, 2000); // Start polling after 2 seconds
   };
 
   const handleFixStatus = async () => {
@@ -465,6 +487,26 @@ const KnowledgeBaseDetail = () => {
             </div>
           </div>
 
+          {/* Processing Status Card - only show when actually processing */}
+          {(indexing || (kb.status === 'processing' && pendingDocs > 0)) && (
+            <div className="processing-status-card fade-in">
+              <div className="processing-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="spin">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+              </div>
+              <div className="processing-info">
+                <h3>{t.kbDetail.processingTitle || 'Processing in Progress'}</h3>
+                <p>{t.kbDetail.processingMessage || 'Documents are being indexed. This may take a few minutes for scanned documents.'}</p>
+                <div className="processing-progress">
+                  <div className="progress-bar">
+                    <div className="progress-fill"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Tabs */}
           <div className="tabs-container">
             <div className="tabs">
@@ -563,15 +605,26 @@ const KnowledgeBaseDetail = () => {
                           </span>
                         </div>
                       </div>
-                      <button 
-                        onClick={() => handleRemoveDocument(doc.id)} 
-                        className="remove-doc-btn"
-                        title={t.kbDetail.removeDocument}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                      <div className="doc-actions">
+                        <button 
+                          onClick={() => handleReindexDocument(doc.id)} 
+                          className="reindex-doc-btn"
+                          title={t.kbDetail.reindexDocument}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                          </svg>
+                        </button>
+                        <button 
+                          onClick={() => handleRemoveDocument(doc.id)} 
+                          className="remove-doc-btn"
+                          title={t.kbDetail.removeDocument}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -689,7 +742,7 @@ const KnowledgeBaseDetail = () => {
                 <option value="">{t.kbDetail.chooseDocument}</option>
                 {userDocuments.map(doc => (
                   <option key={doc.id} value={doc.id}>
-                    {doc.original_filename} ({doc.total_pages || 1} {t.kbDetail.pages})
+                    {doc.original_filename}{doc.last_tool_used ? ` [${doc.last_tool_used}]` : ''} ({doc.total_pages || 1} {t.kbDetail.pages})
                   </option>
                 ))}
               </select>

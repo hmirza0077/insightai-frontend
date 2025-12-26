@@ -299,6 +299,9 @@ export const knowledgeBaseAPI = {
   // Indexing (async - recommended)
   indexAsync: (id) => api.post(`/knowledge-base/${id}/index-async/`),
   
+  // Re-index a specific document (reset to pending then index)
+  reindexDocument: (id, docId) => api.post(`/knowledge-base/${id}/documents/${docId}/reindex/`),
+  
   // Refresh/fix KB status
   refreshStatus: (id) => api.post(`/knowledge-base/${id}/refresh-status/`),
   

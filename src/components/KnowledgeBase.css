@@ -427,6 +427,16 @@
   font-size: 1rem;
   font-family: inherit;
   transition: var(--transition-normal);
+  color: #1f2937 !important;
+  background-color: #ffffff !important;
+  direction: rtl;
+  text-align: right;
+  -webkit-text-fill-color: #1f2937 !important;
+}
+
+.form-input::placeholder, .form-textarea::placeholder {
+  color: #9ca3af !important;
+  -webkit-text-fill-color: #9ca3af !important;
 }
 
 .form-textarea {
