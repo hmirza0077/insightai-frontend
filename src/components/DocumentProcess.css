@@ -708,3 +708,84 @@
 .process-button.disabled:hover {
   background: #6c757d;
 }
+
+/* Price Changed Animation */
+@keyframes priceFlash {
+  0% {
+    background-color: transparent;
+  }
+  25% {
+    background-color: rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    background-color: rgba(102, 126, 234, 0.15);
+  }
+  75% {
+    background-color: rgba(102, 126, 234, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes pricePulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes highlightValue {
+  0% {
+    color: #667eea;
+    text-shadow: 0 0 8px rgba(102, 126, 234, 0.6);
+  }
+  50% {
+    color: #28a745;
+    text-shadow: 0 0 12px rgba(40, 167, 69, 0.8);
+  }
+  100% {
+    color: #667eea;
+    text-shadow: none;
+  }
+}
+
+.cost-breakdown.price-changed {
+  animation: priceFlash 0.6s ease-out;
+}
+
+.cost-item.total.highlight-change {
+  animation: pricePulse 0.6s ease-out;
+}
+
+.cost-item.total.highlight-change .cost-value {
+  animation: highlightValue 0.6s ease-out;
+}
+
+/* Dark theme price change animation */
+.document-process.theme-dark .cost-breakdown.price-changed {
+  animation: priceFlashDark 0.6s ease-out;
+}
+
+@keyframes priceFlashDark {
+  0% {
+    background-color: transparent;
+  }
+  25% {
+    background-color: rgba(102, 126, 234, 0.4);
+  }
+  50% {
+    background-color: rgba(102, 126, 234, 0.2);
+  }
+  75% {
+    background-color: rgba(102, 126, 234, 0.4);
+  }
+  100% {
+    background-color: transparent;
+  }
+}

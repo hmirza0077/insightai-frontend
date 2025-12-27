@@ -1,10 +1,35 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useToast } from '../contexts/ToastContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { documentsAPI } from '../api';
 import './DocumentProcess.css';
+
+// Debounce hook for cost estimation
+const useDebounce = (callback, delay) => {
+  const timeoutRef = useRef(null);
+  
+  const debouncedCallback = useCallback((...args) => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      callback(...args);
+    }, delay);
+  }, [callback, delay]);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+  
+  return debouncedCallback;
+};
 
 const DocumentProcess = () => {
   const { id: documentId } = useParams();
@@ -37,22 +62,17 @@ const DocumentProcess = () => {
   const [estimatingCost, setEstimatingCost] = useState(false);
   const [walletBalance, setWalletBalance] = useState(null);
   const [insufficientBalance, setInsufficientBalance] = useState(false);
+  const [priceChanged, setPriceChanged] = useState(false);
+  const previousCostRef = useRef(null);
 
   useEffect(() => {
     loadDocument();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId]);
 
-  // Estimate cost when task configuration changes
-  useEffect(() => {
-    if (taskType && documentId) {
-      estimateCost();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskType, selectedTool, usePageRange, pageRange.start, pageRange.end]);
-
-  const estimateCost = async () => {
-    if (!taskType) return;
+  // Core cost estimation function
+  const performCostEstimation = useCallback(async () => {
+    if (!taskType || !documentId) return;
     
     setEstimatingCost(true);
     try {
@@ -60,6 +80,10 @@ const DocumentProcess = () => {
         task_type: taskType,
         extraction_tool: selectedTool,
         translation_backend: 'auto',
+        source_language: sourceLanguage,
+        target_language: targetLanguage,
+        ocr_language: ocrLanguage,
+        dpi: dpiPresets[selectedDpi]?.value,
       };
       
       if (usePageRange && pageRange.start && pageRange.end) {
@@ -68,7 +92,17 @@ const DocumentProcess = () => {
       }
       
       const response = await documentsAPI.estimateCost(documentId, costData);
-      setCostEstimate(response.data.estimated_cost);
+      const newCost = response.data.estimated_cost;
+      
+      // Check if price changed for animation
+      if (previousCostRef.current !== null && 
+          previousCostRef.current.total !== newCost.total) {
+        setPriceChanged(true);
+        setTimeout(() => setPriceChanged(false), 600);
+      }
+      previousCostRef.current = newCost;
+      
+      setCostEstimate(newCost);
       setWalletBalance(response.data.wallet_balance);
       setInsufficientBalance(!response.data.sufficient_balance);
     } catch (error) {
@@ -76,7 +110,21 @@ const DocumentProcess = () => {
     } finally {
       setEstimatingCost(false);
     }
-  };
+  }, [taskType, documentId, selectedTool, sourceLanguage, targetLanguage, ocrLanguage, selectedDpi, dpiPresets, usePageRange, pageRange.start, pageRange.end]);
+
+  // Debounced version for user input changes (300ms delay)
+  const debouncedEstimateCost = useDebounce(performCostEstimation, 300);
+
+  // Estimate cost when task configuration changes
+  useEffect(() => {
+    if (taskType && documentId) {
+      debouncedEstimateCost();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [taskType, selectedTool, usePageRange, pageRange.start, pageRange.end, targetLanguage, sourceLanguage, ocrLanguage, selectedDpi]);
+
+  // Legacy function name for compatibility
+  const estimateCost = performCostEstimation;
 
   const loadDocument = async () => {
     try {
@@ -507,7 +555,7 @@ const DocumentProcess = () => {
                       {t.docProcess.estimatingCost}
                     </div>
                   ) : costEstimate ? (
-                    <div className={`cost-breakdown ${insufficientBalance ? 'insufficient' : ''}`}>
+                    <div className={`cost-breakdown ${insufficientBalance ? 'insufficient' : ''} ${priceChanged ? 'price-changed' : ''}`}>
                       <div className="cost-items">
                         <div className="cost-item">
                           <span className="cost-label">{t.docProcess.extractionCost}:</span>
@@ -525,7 +573,7 @@ const DocumentProcess = () => {
                             <span className="cost-value">${costEstimate.embedding_cost.toFixed(4)}</span>
                           </div>
                         )}
-                        <div className="cost-item total">
+                        <div className={`cost-item total ${priceChanged ? 'highlight-change' : ''}`}>
                           <span className="cost-label">{t.docProcess.totalCost}:</span>
                           <span className="cost-value">${costEstimate.total.toFixed(2)}</span>
                         </div>

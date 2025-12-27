@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { documentsAPI } from '../api';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -6,6 +6,244 @@ import { useToast } from '../contexts/ToastContext';
 import { useTheme } from '../contexts/ThemeContext';
 import Logo from './Logo';
 import './DocumentTask.css';
+
+// Unicode Bidirectional Control Characters
+const BIDI = {
+  LRI: '\u2066',  // Left-to-Right Isolate
+  RLI: '\u2067',  // Right-to-Left Isolate  
+  FSI: '\u2068',  // First Strong Isolate
+  PDI: '\u2069',  // Pop Directional Isolate
+  LRM: '\u200E',  // Left-to-Right Mark
+  RLM: '\u200F',  // Right-to-Left Mark
+};
+
+// Helper function to detect if text contains RTL characters
+const hasRTLChars = (text) => {
+  return /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\u0590-\u05FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
+};
+
+// Helper function to detect if text contains LTR characters  
+const hasLTRChars = (text) => {
+  return /[a-zA-Z]/.test(text);
+};
+
+// Process a single line for proper bidirectional display
+const processBidiLine = (line) => {
+  if (!line.trim()) return line;
+  
+  const lineHasRTL = hasRTLChars(line);
+  if (!lineHasRTL) return line; // Pure LTR line, no processing needed
+  
+  // Start line with RLM to establish RTL context for the whole line
+  // This ensures numbers and punctuation at the start stay in correct position
+  let processed = BIDI.RLM + line;
+  
+  // Wrap English words/phrases with LRI...PDI to isolate them from RTL context
+  if (hasLTRChars(line)) {
+    processed = processed.replace(
+      /([a-zA-Z][a-zA-Z0-9_./\-:]*)/g,
+      `${BIDI.LRI}$1${BIDI.PDI}`
+    );
+  }
+  
+  return processed;
+};
+
+// Process text to properly handle bidirectional content
+const processBidiText = (text) => {
+  if (!text) return text;
+  
+  // Process line by line
+  const lines = text.split('\n');
+  const processedLines = lines.map(processBidiLine);
+  return processedLines.join('\n');
+};
+
+// Helper function to detect if a block of text is code (JSON, URLs, etc.)
+const isCodeBlock = (text) => {
+  if (!text || !text.trim()) return false;
+  const trimmed = text.trim();
+  
+  // Check if it's a JSON block
+  if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+      (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+    return true;
+  }
+  
+  // Check if it starts with HTTP method and URL
+  if (/^(GET|POST|PUT|DELETE|PATCH)\s+https?:\/\//.test(trimmed)) {
+    return true;
+  }
+  
+  // Check if it's a URL
+  if (/^https?:\/\/\S+$/.test(trimmed)) {
+    return true;
+  }
+  
+  return false;
+};
+
+// Try to format JSON with proper indentation
+const formatCodeBlock = (code) => {
+  const trimmed = code.trim();
+  
+  try {
+    // Check if it starts with HTTP method
+    const httpMatch = trimmed.match(/^(GET|POST|PUT|DELETE|PATCH)\s+(https?:\/\/[^\s\n]+)\s*([\s\S]*)/);
+    if (httpMatch) {
+      const method = httpMatch[1];
+      const url = httpMatch[2];
+      const rest = httpMatch[3]?.trim();
+      
+      if (rest && (rest.startsWith('{') || rest.startsWith('['))) {
+        try {
+          const parsed = JSON.parse(rest);
+          return `${method} ${url}\n\n${JSON.stringify(parsed, null, 2)}`;
+        } catch (e) {
+          return trimmed;
+        }
+      }
+      return trimmed;
+    }
+    
+    // Try to parse as JSON
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      const parsed = JSON.parse(trimmed);
+      return JSON.stringify(parsed, null, 2);
+    }
+  } catch (e) {
+    // Not valid JSON
+  }
+  
+  return code;
+};
+
+// Code block component with copy button
+const CodeBlock = ({ code, onCopy }) => {
+  const [copied, setCopied] = React.useState(false);
+  const formattedCode = formatCodeBlock(code);
+  
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(formattedCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      if (onCopy) onCopy();
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+  
+  return (
+    <div className="code-block-wrapper">
+      <button className="copy-btn" onClick={handleCopy} title="Copy to clipboard">
+        {copied ? (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
+          </svg>
+        )}
+        <span>{copied ? 'Copied!' : 'Copy'}</span>
+      </button>
+      <pre className="ltr-block">{formattedCode}</pre>
+    </div>
+  );
+};
+
+// Component to render content - detect and extract code blocks, render rest with proper bidi handling
+const FormattedContent = ({ content, isRTL }) => {
+  if (!content) return null;
+  
+  // Simple approach: split by lines and group consecutive code-like lines
+  const lines = content.split('\n');
+  const elements = [];
+  let currentText = [];
+  let currentCode = [];
+  let inCodeBlock = false;
+  let braceCount = 0;
+  
+  const flushText = () => {
+    if (currentText.length > 0) {
+      const text = currentText.join('\n');
+      if (text.trim()) {
+        // For RTL, render each line in its own bdi element for proper isolation
+        if (isRTL) {
+          const textLines = text.split('\n');
+          elements.push(
+            <div key={`text-${elements.length}`} className="text-block">
+              {textLines.map((line, idx) => (
+                <div key={idx} dir="rtl" className="bidi-line">
+                  {line || '\u200B'}
+                </div>
+              ))}
+            </div>
+          );
+        } else {
+          elements.push(
+            <div key={`text-${elements.length}`} className="text-block">
+              {text}
+            </div>
+          );
+        }
+      }
+      currentText = [];
+    }
+  };
+  
+  const flushCode = () => {
+    if (currentCode.length > 0) {
+      const code = currentCode.join('\n');
+      elements.push(
+        <CodeBlock key={`code-${elements.length}`} code={code} />
+      );
+      currentCode = [];
+    }
+  };
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    
+    // Check if this line starts a code block
+    if (!inCodeBlock) {
+      if (trimmed.startsWith('{') || trimmed.startsWith('[') || 
+          /^(GET|POST|PUT|DELETE|PATCH)\s+https?:\/\//.test(trimmed)) {
+        flushText();
+        inCodeBlock = true;
+        braceCount = (line.match(/[\{\[]/g) || []).length - (line.match(/[\}\]]/g) || []).length;
+        currentCode.push(line);
+        
+        if (braceCount <= 0 && (trimmed.endsWith('}') || trimmed.endsWith(']'))) {
+          inCodeBlock = false;
+          flushCode();
+        }
+        continue;
+      }
+    }
+    
+    if (inCodeBlock) {
+      currentCode.push(line);
+      braceCount += (line.match(/[\{\[]/g) || []).length;
+      braceCount -= (line.match(/[\}\]]/g) || []).length;
+      
+      if (braceCount <= 0) {
+        inCodeBlock = false;
+        flushCode();
+      }
+    } else {
+      currentText.push(line);
+    }
+  }
+  
+  // Flush remaining content
+  flushCode();
+  flushText();
+  
+  return <>{elements}</>;
+};
 
 // Helper function to convert technical errors to human-readable messages
 const getHumanReadableError = (error, t) => {
@@ -70,6 +308,13 @@ const DocumentTask = () => {
   const [conversations, setConversations] = useState([]);
   const [asking, setAsking] = useState(false);
   const [expandedAnswers, setExpandedAnswers] = useState({});
+  
+  // Re-extract modal
+  const [showReExtractModal, setShowReExtractModal] = useState(false);
+  const [reExtractTool, setReExtractTool] = useState('auto');
+  const [reExtractDpi, setReExtractDpi] = useState(200);
+  const [availableTools, setAvailableTools] = useState([]);
+  const [reExtracting, setReExtracting] = useState(false);
   
   // View modes
   const [viewMode, setViewMode] = useState('extracted'); // 'extracted' or 'translated'
@@ -415,6 +660,46 @@ const DocumentTask = () => {
     }
   };
 
+  const handleOpenReExtract = async () => {
+    try {
+      // Load available tools for this document
+      const infoResponse = await documentsAPI.getInfo(documentId);
+      setAvailableTools(infoResponse.data.available_tools || []);
+      setReExtractTool(task.extraction_tool || 'auto');
+      setReExtractDpi(task.dpi || 200);
+      setShowReExtractModal(true);
+    } catch (error) {
+      toast.error('Failed to load extraction tools');
+    }
+  };
+
+  const handleReExtract = async () => {
+    setReExtracting(true);
+    try {
+      const response = await documentsAPI.reExtract(taskId, {
+        extraction_tool: reExtractTool,
+        dpi: reExtractDpi,
+      });
+      
+      if (response.data.success) {
+        setTask(response.data.task);
+        setShowReExtractModal(false);
+        toast.success(t.docTask.reExtractStarted || 'Re-extraction started');
+        
+        // Clear existing pages
+        setExtractedPages([]);
+        setTranslatedPages([]);
+        
+        // Start polling for status updates
+        startPolling();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to start re-extraction');
+    } finally {
+      setReExtracting(false);
+    }
+  };
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'completed':
@@ -573,7 +858,21 @@ const DocumentTask = () => {
 
           {/* Task Info */}
           <div className="task-info-card fade-in">
-            <h3>{t.docTask.taskDetails}</h3>
+            <div className="task-info-header">
+              <h3>{t.docTask.taskDetails}</h3>
+              {(task.status === 'completed' || task.status === 'failed') && (
+                <button 
+                  onClick={handleOpenReExtract}
+                  className="re-extract-btn"
+                  title={t.docTask.reExtract || 'Re-extract with different settings'}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                  </svg>
+                  {t.docTask.reExtract || 'Re-extract'}
+                </button>
+              )}
+            </div>
             <div className="info-grid">
               <div className="info-item">
                 <span className="info-label">{t.docTask.tool}</span>
@@ -647,18 +946,22 @@ const DocumentTask = () => {
                 </div>
                 
                 {/* Book Page */}
-                <div className="book-page">
+                <div className={`book-page ${task?.source_language === 'fa' || task?.source_language === 'ar' ? 'rtl-content' : ''}`}>
                   {isEditing ? (
                     <textarea
-                      className="book-page-editor"
+                      className={`book-page-editor ${task?.source_language === 'fa' || task?.source_language === 'ar' ? 'rtl-lang' : 'ltr-lang'}`}
                       value={editContent}
                       onChange={(e) => setEditContent(e.target.value)}
-                      dir="auto"
                       autoFocus
                     />
                   ) : (
-                    <div className="book-page-content" dir="auto">
-                      {currentPageData?.content || t.docTask.emptyPage || 'This page is empty'}
+                    <div 
+                      className={`book-page-content ${task?.source_language === 'fa' || task?.source_language === 'ar' ? 'rtl-lang' : 'ltr-lang'}`}
+                    >
+                      <FormattedContent 
+                        content={currentPageData?.content || t.docTask.emptyPage || 'This page is empty'}
+                        isRTL={task?.source_language === 'fa' || task?.source_language === 'ar'}
+                      />
                     </div>
                   )}
                 </div>
@@ -785,13 +1088,23 @@ const DocumentTask = () => {
                   
                   {conversations.length > 0 && (
                     <div className="conversations-list">
-                      {conversations.map((conv, index) => {
-                        const questionNumber = conversations.length - index;
+                      {[...conversations].reverse().map((conv, index) => {
+                        const questionNumber = index + 1;
                         const isExpanded = expandedAnswers[conv.id] !== false; // Default to expanded
                         
                         return (
                           <div key={conv.id || index} className="conversation-item fade-in">
+                            {/* Question - Right side */}
                             <div className="conv-header">
+                              <button 
+                                className="delete-conv-btn"
+                                onClick={() => handleDeleteConversation(conv.id)}
+                                title={t.docTask.deleteQuestion || 'Delete question'}
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
                               <div className="conv-question" onClick={() => toggleAnswerExpanded(conv.id)}>
                                 <span className="conv-number">{t.docTask.questionLabel || 'Q'}{questionNumber}</span>
                                 <p>{conv.question}</p>
@@ -806,16 +1119,8 @@ const DocumentTask = () => {
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                                 </svg>
                               </div>
-                              <button 
-                                className="delete-conv-btn"
-                                onClick={() => handleDeleteConversation(conv.id)}
-                                title={t.docTask.deleteQuestion || 'Delete question'}
-                              >
-                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
                             </div>
+                            {/* Answer - Left side */}
                             {isExpanded && (
                               <div className="conv-answer">
                                 <span className="conv-label">{t.docTask.answerLabel || 'A'}{questionNumber}</span>
@@ -844,6 +1149,91 @@ const DocumentTask = () => {
           )}
         </div>
       </main>
+
+      {/* Re-extract Modal */}
+      {showReExtractModal && (
+        <div className="modal-overlay" onClick={() => setShowReExtractModal(false)}>
+          <div className="modal-content re-extract-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>{t.docTask.reExtractTitle || 'Re-extract Document'}</h3>
+              <button className="modal-close" onClick={() => setShowReExtractModal(false)}>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-description">
+                {t.docTask.reExtractDescription || 'Choose different extraction settings to re-process this document. This will replace the current extracted text.'}
+              </p>
+              
+              <div className="form-group">
+                <label>{t.docTask.extractionTool || 'Extraction Tool'}</label>
+                <select 
+                  value={reExtractTool} 
+                  onChange={(e) => setReExtractTool(e.target.value)}
+                  className="form-select"
+                >
+                  <option value="auto">{t.docTask.autoSelect || 'Auto-select (Recommended)'}</option>
+                  {availableTools.map(tool => (
+                    <option key={tool.id} value={tool.id}>
+                      {tool.name} {tool.ocr ? '(OCR)' : ''}
+                    </option>
+                  ))}
+                </select>
+                <p className="form-hint">
+                  {t.docTask.toolHint || 'For PDFs with embedded text, use PyMuPDF. For scanned documents, use EasyOCR.'}
+                </p>
+              </div>
+              
+              <div className="form-group">
+                <label>{t.docTask.dpiSetting || 'OCR Quality (DPI)'}</label>
+                <select 
+                  value={reExtractDpi} 
+                  onChange={(e) => setReExtractDpi(parseInt(e.target.value))}
+                  className="form-select"
+                >
+                  <option value={72}>Low (72 DPI) - Fast</option>
+                  <option value={150}>Medium (150 DPI)</option>
+                  <option value={200}>High (200 DPI) - Recommended</option>
+                  <option value={300}>Very High (300 DPI)</option>
+                  <option value={400}>Maximum (400 DPI) - Slow</option>
+                </select>
+                <p className="form-hint">
+                  {t.docTask.dpiHint || 'Higher DPI = better quality but slower processing. Only affects OCR tools.'}
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button 
+                className="btn-secondary" 
+                onClick={() => setShowReExtractModal(false)}
+              >
+                {t.cancel || 'Cancel'}
+              </button>
+              <button 
+                className="btn-primary" 
+                onClick={handleReExtract}
+                disabled={reExtracting}
+              >
+                {reExtracting ? (
+                  <>
+                    <span className="btn-spinner"></span>
+                    {t.docTask.reExtracting || 'Re-extracting...'}
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    {t.docTask.startReExtract || 'Start Re-extraction'}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

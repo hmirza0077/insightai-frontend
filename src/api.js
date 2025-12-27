@@ -235,6 +235,9 @@ export const documentsAPI = {
   // Process a task (async - recommended)
   processTaskAsync: (taskId) => api.post(`/documents/tasks/${taskId}/process-async/`),
   
+  // Re-extract text with different settings
+  reExtract: (taskId, settings = {}) => api.post(`/documents/tasks/${taskId}/re-extract/`, settings),
+  
   // Get document chunks (for KB tasks)
   getChunks: (taskId) => api.get(`/documents/tasks/${taskId}/chunks/`),
   
